@@ -1,0 +1,19 @@
+{
+	"help": "Sidans texter (engelska). 'lead' och 'text' är presentationen under heron – skriv om dem fritt. Länkarna visas under texten.",
+	"title": "Ulf Bodin – Photography",
+	"name": "Ulf Bodin",
+	"kicker": "Photography",
+	"meta": "Uppsala, Sweden",
+	"lead": "Two decades of photographs – Uppsala and Stockholm, the Swedish seasons, streets, coasts and travels – drawn from my Flickr photostream.",
+	"text": [
+		"The archive holds every public photo on my Flickr account. Browse it year by year, by theme or by album, or open the archive and filter on when, where, what and why.",
+		"Every photo links back to its page on Flickr, where it can be seen in full size together with its comments."
+	],
+	"links": [
+		{"label": "ulfbodin.se", "url": "https://ulfbodin.se/"},
+		{"label": "Portfolio", "url": "https://ulfbodin.se/portfolio.html"},
+		{"label": "Flickr ↗", "url": "https://www.flickr.com/photos/ulfbodin/"}
+	],
+	"home": {"label": "ulfbodin.se", "url": "https://ulfbodin.se/photography.html"},
+	"flickr_user": "ulfbodin"
+}

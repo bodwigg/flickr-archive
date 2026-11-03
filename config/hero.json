@@ -1,0 +1,81 @@
+{
+	"help": "Hero: handplockade bilder visas först (en per dag i tur och ordning), därefter slump bland de mest visade/favoritmarkerade. Grupperna kommer från ulfbodin.se/portfolio.html. 'fill' styr slumpurvalet.",
+	"groups": [
+		{
+			"title": "Golden",
+			"photos": [
+				"11239519916",
+				"40883074782",
+				"35708560543",
+				"26101191820"
+			]
+		},
+		{
+			"title": "Blue",
+			"photos": [
+				"33621814458",
+				"12466398273",
+				"10057700646",
+				"47555010411"
+			]
+		},
+		{
+			"title": "Street",
+			"photos": [
+				"8868855162",
+				"13742758993",
+				"40250193834",
+				"52545396685"
+			]
+		},
+		{
+			"title": "Urban",
+			"photos": [
+				"8032992185",
+				"14098647474",
+				"53364475681",
+				"32568302341"
+			]
+		},
+		{
+			"title": "Panorama",
+			"photos": [
+				"22229082528",
+				"48615761886",
+				"14667467440",
+				"16045369985"
+			]
+		},
+		{
+			"title": "Black & White",
+			"photos": [
+				"22583841975",
+				"15490937218",
+				"55283045818",
+				"54795581298"
+			]
+		},
+		{
+			"title": "Model",
+			"photos": [
+				"48585906931",
+				"48220646277",
+				"48585905811",
+				"14721489097"
+			]
+		},
+		{
+			"title": "Portrait",
+			"photos": [
+				"55062529228",
+				"48094086612",
+				"51381649122",
+				"48672630206"
+			]
+		}
+	],
+	"fill": {
+		"pool": 300,
+		"rank": "faves"
+	}
+}

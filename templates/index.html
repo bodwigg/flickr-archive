@@ -1,0 +1,280 @@
+{# ---------------------------------------------------------------
+   templates/index.html – Ulf Bodin – Photography (build/build.py).
+   The layout of Radius's "månadens" (templates/featured.html): a large
+   picture, a few lines of presentation, the years, themes, albums and the
+   whole archive as a wall with filters and a picture viewer. Everything is
+   built in advance; the filtering runs in the browser against
+   data/photos.json (static/archive.js). Style: static/archive.css.
+------------------------------------------------------------------ #}
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{{ site.title }}</title>
+	<meta name="description" content="{{ site.lead[:180] }}">
+	{% if hero %}<meta property="og:image" content="{{ hero[0].big }}">{% endif %}
+	<meta property="og:title" content="{{ site.title }}">
+	<link rel="icon" href="https://ulfbodin.se/favicon.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="static/archive.css?v={{ version }}">
+	{% if coll.geo %}<link rel="stylesheet" href="static/vendor/leaflet/leaflet.css">
+	<link rel="stylesheet" href="static/vendor/leaflet.markercluster/MarkerCluster.css">{% endif %}
+</head>
+<body>
+
+{% macro chev() %}<span class="fx-facet__chev" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>{% endmacro %}
+{% macro panel_head(title, hint) %}
+		<div class="fx-panel__head">
+			<h3 class="fx-panel__title">{{ title }}</h3>
+			<p class="fx-panel__hint">{{ hint }}</p>
+			<button type="button" class="fx-panel__close" data-panel-close>Collapse <span aria-hidden="true">▴</span></button>
+		</div>
+{% endmacro %}
+
+<header class="fx-top">
+	<a class="fx-top__home" href="{{ site.home.url }}">{{ site.home.label }}</a>
+	<nav class="fx-top__nav" aria-label="Sections">
+		<a href="#years">Years</a>
+		<a href="#themes">Themes</a>
+		<a href="#albums">Albums</a>
+		<a href="#archive">Archive</a>
+		<a href="#about">About</a>
+	</nav>
+</header>
+
+{# The large picture: the hand-picked ones first (config/hero.json), then a few of the most faved – a new set every day. #}
+<section class="fx-hero{% if hero and hero[0].ratio < 1.2 %} is-whole{% endif %}" aria-label="{{ site.name }}">
+	<div class="fx-hero__frames">
+		{% for h in hero %}
+		<figure class="fx-hero__frame{% if h.ratio < 1.2 %} fx-hero__frame--whole{% endif %}{% if loop.first %} is-active{% endif %}" data-id="{{ h.id }}" data-year="{{ h.year or '' }}">
+			<img {% if loop.first %}src{% else %}data-src{% endif %}="{{ h.big }}" alt="{{ h.title }}">
+		</figure>
+		{% endfor %}
+	</div>
+	<div class="fx-hero__shade" aria-hidden="true"></div>
+	<div class="fx-hero__text">
+		<p class="fx-hero__kicker">{{ site.kicker }}</p>
+		<h1 class="fx-hero__name">{{ site.name }}</h1>
+		{% if site.meta %}<p class="fx-hero__meta">{{ site.meta }}</p>{% endif %}
+		<p class="fx-hero__count"><strong>{{ coll.total|num }}</strong> photos{% if coll.first_year %} from {{ coll.first_year }}–{{ coll.last_year }}{% endif %}</p>
+		<a class="fx-hero__cta" href="#archive">Enter the archive ↓</a>
+	</div>
+	{% if hero %}
+	<button type="button" class="fx-hero__caption" data-open="{{ hero[0].id }}">
+		<span class="fx-hero__caption-title">{{ hero[0].title }}</span><span class="fx-hero__caption-year">{% if hero[0].year and (hero[0].year|string) not in hero[0].title %}{{ hero[0].year }}{% endif %}</span>
+	</button>
+	{% endif %}
+</section>
+
+{# The presentation (config/site.json) and the collection in figures. #}
+<section class="fx-intro">
+	<div class="fx-intro__text">
+		<p class="fx-intro__lead">{{ site.lead }}</p>
+		{% for p in site.text %}<p>{{ p }}</p>{% endfor %}
+		{% if site.links %}<p class="fx-intro__links">{% for l in site.links %}<a href="{{ l.url }}">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
+	</div>
+	<dl class="fx-figures">
+		<div><dt>Photos</dt><dd>{{ coll.total|num }}</dd></div>
+		{% if coll.first_year %}<div><dt>Years</dt><dd>{{ coll.first_year }}–{{ coll.last_year }}</dd></div>{% endif %}
+		<div><dt>On the map</dt><dd>{{ coll.geo|num }}</dd></div>
+		<div><dt>Albums</dt><dd>{{ coll.albums }}</dd></div>
+	</dl>
+</section>
+
+{# The years: one photo per year and how much was photographed. #}
+<section class="fx-section fx-life" id="years">
+	<header class="fx-section__head">
+		<h2 class="fx-section__title">Year by year</h2>
+		<p class="fx-section__sub">A photo for every year. The bar shows how many photos the year has – click to see them all.</p>
+	</header>
+	<div class="fx-life__scroller">
+	<button type="button" class="fx-life__arrow fx-life__arrow--prev" data-strip-prev hidden aria-label="Earlier years" title="Earlier years"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+	<div class="fx-life__strip" data-strip tabindex="0" aria-label="Year by year">
+		{% for y in years %}
+		<button type="button" class="fx-year" data-filter="year" data-value="{{ y.year }}" title="{{ y.count|num }} photos from {{ y.year }}">
+			<span class="fx-year__img" style="--r: {{ y.picture.ratio }}"><img src="{{ y.picture.small }}" alt="" loading="lazy" data-pin="{{ y.picture.id }}"></span>
+			<span class="fx-year__bar" style="--h: {{ (y.count / coll.peak * 100)|round(1) }}%"></span>
+			<span class="fx-year__label">{{ y.year }}</span>
+			<span class="fx-year__count">{{ y.count }}</span>
+		</button>
+		{% endfor %}
+	</div>
+	<button type="button" class="fx-life__arrow fx-life__arrow--next" data-strip-next hidden aria-label="Later years" title="Later years"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+	</div>
+</section>
+
+{# Themes (config/tags.json). #}
+<section class="fx-section" id="themes">
+	<header class="fx-section__head">
+		<h2 class="fx-section__title">Themes</h2>
+		<p class="fx-section__sub">Seasons, light, places and people that recur through the years.</p>
+	</header>
+	<div class="fx-themes">
+		{% for t in themes %}
+		{% set extra = loop.index > themes_shown %}
+		<button type="button" class="fx-theme" data-filter="theme" data-value="{{ t.id }}" data-label="{{ t.label }}"{% if extra %} data-theme-more hidden{% endif %}>
+			<span class="fx-theme__mosaic">{% for pic in t.pictures %}<img {% if extra %}data-src{% else %}src{% endif %}="{{ pic.src }}" alt="" loading="lazy" data-pin="{{ pic.id }}">{% endfor %}</span>
+			<span class="fx-theme__label">{{ t.label }}</span>
+			<span class="fx-theme__count">{{ t.count|num }} photos</span>
+		</button>
+		{% endfor %}
+	</div>
+	{% if themes|length > themes_shown %}
+	<p class="fx-more"><button type="button" class="fx-more__btn" data-themes-more data-less="Show fewer themes">Show more themes ({{ themes|length - themes_shown }})</button></p>
+	{% endif %}
+</section>
+
+{# Albums (config/albums.json): places and themes, each a row of photos. #}
+{% if albums %}
+<section class="fx-section" id="albums">
+	<header class="fx-section__head">
+		<h2 class="fx-section__title">Albums</h2>
+		<p class="fx-section__sub">{{ albums|length }} albums – places and series. Click an album to see all its photos.</p>
+	</header>
+	<ol class="fx-jobs">
+		{% for a in albums %}
+		<li class="fx-job">
+			<button type="button" class="fx-job__head" data-filter="{{ 'place' if a.type == 'place' else 'album' }}" data-value="{{ a.id }}" data-label="{{ a.title }}">
+				<span class="fx-job__title">{{ a.title }}</span>
+				<span class="fx-job__meta">{{ a.years }} · {{ a.count|num }} photos</span>
+			</button>
+			<span class="fx-job__pictures">{% for pic in a.pictures %}<button type="button" class="fx-job__pic" data-open="{{ pic.id }}" style="--r: {{ pic.ratio }}"><img data-src="{{ pic.src }}" alt="{{ pic.title }}" loading="lazy"></button>{% endfor %}</span>
+		</li>
+		{% endfor %}
+	</ol>
+</section>
+{% endif %}
+
+{# The archive: every photo as a wall, filtered and with the picture viewer. #}
+<section class="fx-section fx-archive" id="archive">
+	<header class="fx-section__head">
+		<h2 class="fx-section__title">The archive</h2>
+		<p class="fx-section__sub" data-wall-count>{{ coll.total|num }} photos</p>
+	</header>
+	<div class="fx-filters">
+		<form class="fx-search" role="search" data-wall-search>
+			<input type="search" name="q" placeholder="Search titles, tags and albums …" aria-label="Search the archive" autocomplete="off">
+			<button type="button" class="fx-search__clear" data-clear hidden aria-label="Clear the search and all filters" title="Clear the search and all filters">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+			</button>
+		</form>
+		<div class="fx-facets" role="group" aria-label="Choose">
+			<button type="button" class="fx-facet" data-panel="when" aria-expanded="false" aria-controls="fx-panel-when">When<span class="fx-facet__value" data-summary="when"></span>{{ chev() }}</button>
+			<button type="button" class="fx-facet" data-panel="where" aria-expanded="false" aria-controls="fx-panel-where">Where<span class="fx-facet__value" data-summary="where"></span>{{ chev() }}</button>
+			<button type="button" class="fx-facet" data-panel="what" aria-expanded="false" aria-controls="fx-panel-what">What<span class="fx-facet__value" data-summary="what"></span>{{ chev() }}</button>
+			{% if why %}<button type="button" class="fx-facet" data-panel="why" aria-expanded="false" aria-controls="fx-panel-why">Why<span class="fx-facet__value" data-summary="why"></span>{{ chev() }}</button>{% endif %}
+			{% if cameras %}<button type="button" class="fx-facet" data-panel="how" aria-expanded="false" aria-controls="fx-panel-how">How<span class="fx-facet__value" data-summary="how"></span>{{ chev() }}</button>{% endif %}
+			<button type="button" class="fx-facet fx-facet--bookmarks" data-bookmarks-toggle aria-pressed="false" hidden>★<span class="fx-facet__label"> Bookmarks</span><span class="fx-facet__count" data-bookmarks-count></span></button>
+		</div>
+		<div class="fx-order" role="group" aria-label="Order">
+			<button type="button" class="fx-order__btn" data-order="time" aria-pressed="true" title="Oldest first – click for newest first" data-asc="Oldest first – click for newest first" data-desc="Newest first – click for oldest first">Chronological <span class="fx-order__dir" data-order-dir aria-hidden="true">↑</span></button>
+			<button type="button" class="fx-order__btn" data-order="random" aria-pressed="false">Shuffled</button>
+		</div>
+	</div>
+
+	<div class="fx-panel" id="fx-panel-when" data-panel-body="when" hidden>
+		{{ panel_head("When", "Choose a decade or a year.") }}
+		{% for d in when %}
+		<div class="fx-panel__row">
+			<button type="button" class="fx-chip fx-chip--strong" data-filter="decade" data-value="{{ d.decade }}" data-panel-chip>{{ d.decade }}s <span>{{ d.count|num }}</span></button>
+			<span class="fx-panel__years">{% for y in d.years %}<button type="button" class="fx-chip fx-chip--small" data-filter="year" data-value="{{ y.year }}" data-panel-chip title="{{ y.count|num }} photos">{{ y.year }}</button>{% endfor %}</span>
+		</div>
+		{% endfor %}
+	</div>
+
+	<div class="fx-panel" id="fx-panel-where" data-panel-body="where" hidden>
+		{{ panel_head("Where", (coll.geo|num) ~ " photos have a map position.") }}
+		{% if coll.geo %}
+		<div class="fx-panel__group">
+			<span class="fx-panel__label">Map</span>
+			<span class="fx-panel__chips"><button type="button" class="fx-chip fx-chip--strong fx-chip--map" data-filter="geo" data-value="1" data-panel-chip>
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+				Show on map <span>{{ coll.geo|num }}</span></button></span>
+		</div>
+		{% endif %}
+		{% if places %}
+		<div class="fx-panel__group">
+			<span class="fx-panel__label">Places</span>
+			<span class="fx-panel__chips">{% for a in places %}<button type="button" class="fx-chip" data-filter="place" data-value="{{ a.id }}" data-label="{{ a.title }}" data-panel-chip>{{ a.title }} <span>{{ a.count|num }}</span></button>{% endfor %}</span>
+		</div>
+		{% endif %}
+	</div>
+
+	<div class="fx-panel" id="fx-panel-what" data-panel-body="what" hidden>
+		{{ panel_head("What", "Choose a theme – or search for any tag.") }}
+		<span class="fx-panel__chips">{% for t in themes %}<button type="button" class="fx-chip{% if loop.index <= 12 %} fx-chip--strong{% endif %}" data-filter="theme" data-value="{{ t.id }}" data-label="{{ t.label }}" data-panel-chip>{{ t.label }} <span>{{ t.count|num }}</span></button>{% endfor %}</span>
+		<p class="fx-panel__empty" data-panel-empty hidden>No themes with these choices.</p>
+	</div>
+
+	{% if why %}
+	<div class="fx-panel" id="fx-panel-why" data-panel-body="why" hidden>
+		{{ panel_head("Why", "Series and projects – the albums that are not places.") }}
+		<span class="fx-panel__chips">{% for a in why %}<button type="button" class="fx-chip fx-chip--job" data-filter="album" data-value="{{ a.id }}" data-label="{{ a.title }}" data-panel-chip title="{{ a.title }}">{{ a.title }} <span>{{ a.count|num }}</span></button>{% endfor %}</span>
+		<p class="fx-panel__empty" data-panel-empty hidden>No albums with these choices.</p>
+	</div>
+	{% endif %}
+
+	{% if cameras %}
+	<div class="fx-panel" id="fx-panel-how" data-panel-body="how" hidden>
+		{{ panel_head("How", "Camera and lens, from the photos' EXIF data (" ~ (exif_total|num) ~ " of " ~ (coll.total|num) ~ " photos).") }}
+		<div class="fx-panel__group">
+			<span class="fx-panel__label">Cameras</span>
+			<span class="fx-panel__chips">{% for c in cameras %}<button type="button" class="fx-chip fx-chip--strong" data-filter="camera" data-value="{{ c.name }}" data-panel-chip>{{ c.name }} <span>{{ c.count|num }}</span></button>{% endfor %}</span>
+		</div>
+		{% if lenses %}
+		<div class="fx-panel__group">
+			<span class="fx-panel__label">Lenses</span>
+			<span class="fx-panel__chips">{% for l in lenses %}<button type="button" class="fx-chip" data-filter="lens" data-value="{{ l.name }}" data-panel-chip>{{ l.name }} <span>{{ l.count|num }}</span></button>{% endfor %}</span>
+		</div>
+		{% endif %}
+	</div>
+	{% endif %}
+
+	<div class="fx-active" data-wall-active hidden></div>
+	{% if coll.geo %}<div class="fx-map" data-map hidden></div>{% endif %}
+	<div class="fx-wall" data-wall></div>
+	<p class="fx-wall__status" data-wall-status aria-live="polite"></p>
+	<div class="fx-wall__sentinel" data-wall-sentinel></div>
+	<p class="fx-more" data-wall-more-wrap hidden><button type="button" class="fx-more__btn" data-wall-more>Show more photos</button></p>
+</section>
+
+<footer class="fx-footer" id="about">
+	<div class="fx-footer__cols">
+		<div>
+			<h3>About the archive</h3>
+			<p>All {{ coll.total|num }} public photos from <a href="https://www.flickr.com/photos/{{ site.flickr_user }}/">my Flickr photostream</a>. The photos are shown from Flickr, and every photo links back to its page there.</p>
+			<p>Most photos are free to share under a Creative Commons licence – see each photo for its licence. Photos marked <strong>©&nbsp;All rights reserved</strong> may not be used without permission.</p>
+			{% if coll.updated %}<p class="fx-footer__small">Updated from Flickr {{ coll.updated }}.</p>{% endif %}
+		</div>
+		<div>
+			<h3>Licences</h3>
+			<ul class="fx-footer__list">{% for l in licenses %}<li><button type="button" data-filter="license" data-value="{{ l.id }}" data-label="{{ l.name }}"{% if l.rights %} class="is-rights"{% endif %}>{% if l.rights %}© {% endif %}{{ l.name }}</button> <span>{{ l.count|num }}</span></li>{% endfor %}</ul>
+		</div>
+	</div>
+	<p class="fx-footer__small"><a href="{{ site.home.url }}">{{ site.home.label }}</a> · This product uses the Flickr API but is not endorsed or certified by Flickr.</p>
+</footer>
+
+{# The picture viewer. #}
+<div class="fx-viewer" data-viewer hidden role="dialog" aria-modal="true" aria-label="Photo">
+	<button type="button" class="fx-viewer__close" data-viewer-close aria-label="Close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+	<button type="button" class="fx-viewer__nav fx-viewer__nav--prev" data-viewer-prev aria-label="Previous"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+	<button type="button" class="fx-viewer__nav fx-viewer__nav--next" data-viewer-next aria-label="Next"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+	<figure class="fx-viewer__figure">
+		<a class="fx-viewer__zoom" data-viewer-zoom href="#" title="Click to zoom"><img data-viewer-img alt=""></a>
+		<div class="fx-viewer__deep" data-viewer-deep hidden><div class="fx-viewer__osd" data-viewer-osd></div></div>
+		<div class="fx-viewer__zoombar" data-viewer-zoombar hidden role="toolbar" aria-label="Zoom">
+			<button type="button" data-zoom="out" aria-label="Zoom out" title="Zoom out"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+			<button type="button" data-zoom="home" aria-label="Whole photo" title="Whole photo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+			<button type="button" data-zoom="in" aria-label="Zoom in" title="Zoom in"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg></button>
+			<button type="button" class="fx-viewer__zoomback" data-zoom="back">Back</button>
+		</div>
+	</figure>
+	<aside class="fx-viewer__info" data-viewer-info></aside>
+</div>
+
+<script>window.FX = {{ fx|tojson }};</script>
+{% if coll.geo %}<script src="static/vendor/leaflet/leaflet.js" defer></script>
+<script src="static/vendor/leaflet.markercluster/leaflet.markercluster.js" defer></script>{% endif %}
+<script src="static/archive.js?v={{ version }}" defer></script>
+</body>
+</html>
