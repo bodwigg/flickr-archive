@@ -413,11 +413,45 @@
 		img.decoding = 'async';
 		a.appendChild(img);
 		const cap = el('span', 'fx-tile__caption');
-		if (item.year) cap.appendChild(el('b', null, item.year + ' '));
-		cap.appendChild(document.createTextNode(item.title || ''));
+		const title = el('span', 'fx-tile__title');
+		if (item.year) title.appendChild(el('b', null, item.year + ' '));
+		title.appendChild(document.createTextNode(item.title || ''));
+		cap.appendChild(title);
+		// EXIF on hover: camera, lens and focal length at once (photos.json); aperture, time and
+		// ISO from the details file the first time the photo is pointed at.
+		const gear = gearLine(item);
+		if (gear.length) {
+			const exif = el('span', 'fx-tile__exif', gear.join(' · '));
+			cap.appendChild(exif);
+			wrap.addEventListener('mouseenter', function () {
+				if (exif.dataset.done) return;
+				exif.dataset.done = '1';
+				detailsOf(item.id).then(function (d) {
+					const more = settingsOf(d.exif || {});
+					if (more.length) exif.textContent = gear.concat(more).join(' · ');
+				});
+			});
+		}
 		a.appendChild(cap);
 		a.addEventListener('click', function () { openViewer(index); });
 		return wrap;
+	}
+
+	// The short EXIF line: "EOS R5 · RF 85mm F1.2 L USM · 85 mm" (+ the equivalent for a smaller sensor).
+	function gearLine(p) {
+		const parts = [];
+		if (p.camera) parts.push((GEAR.cameras[p.camera] || p.camera).replace(/^Canon /, ''));
+		if (p.lens) parts.push(GEAR.lenses[p.lens] || p.lens);
+		if (p.focal) {
+			const crop = GEAR.crop[p.camera] || 1;
+			parts.push(p.focal + ' mm' + (crop !== 1 && p.eq ? ' (' + p.eq + ' ' + tr('equiv') + ')' : ''));
+		}
+		return parts;
+	}
+	function settingsOf(e) {
+		// Flickr's exposure: "0.001 sec (1/800)" - the fraction is enough.
+		const time = e.exposure ? (e.exposure.match(/\(([^)]+)\)/) || [null, e.exposure.replace(/\s*sec$/, '')])[1] + ' s' : null;
+		return [e.aperture, time, e.iso ? 'ISO ' + e.iso : null].filter(Boolean);
 	}
 
 	function load() {

@@ -734,11 +734,21 @@ img { display: block; max-width: 100%; }
 
 .fx-tile:hover .fx-tile__caption, .fx-tile:focus-visible .fx-tile__caption { opacity: 1; }
 
-.fx-tile__caption {
+/* The title at most two lines, the EXIF line below it (static/archive.js: gearLine). */
+.fx-tile__title {
 	display: -webkit-box;
 	-webkit-box-orient: vertical;
-	-webkit-line-clamp: 3;
+	-webkit-line-clamp: 2;
 	overflow: hidden;
+}
+.fx-tile__exif {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	margin-top: 0.2rem;
+	overflow: hidden;
+	color: var(--ink-dim);
+	font-size: 0.66rem;
 }
 
 /* Touch screens: no hover - the caption is shown in the viewer instead. */
