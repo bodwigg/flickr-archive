@@ -58,7 +58,10 @@
 		<h1 class="fx-hero__name">{{ site.name }}</h1>
 		{% if site.meta %}<p class="fx-hero__meta">{{ site.meta }}</p>{% endif %}
 		<p class="fx-hero__count"><strong>{{ coll.total|num }}</strong> photos{% if coll.first_year %} from {{ coll.first_year }}–{{ coll.last_year }}{% endif %}</p>
-		<a class="fx-hero__cta" href="#archive">Enter the archive ↓</a>
+		<p class="fx-hero__ctas">
+			<a class="fx-hero__cta" href="#archive">Enter the archive ↓</a>
+			{% if coll.geo %}<a class="fx-hero__cta fx-hero__cta--map" href="?geo=1#archive" data-filter="geo" data-value="1"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg> View the map</a>{% endif %}
+		</p>
 	</div>
 	{% if hero %}
 	<button type="button" class="fx-hero__caption" data-open="{{ hero[0].id }}">

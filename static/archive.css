@@ -153,9 +153,12 @@ img { display: block; max-width: 100%; }
 
 .fx-hero__count strong { font-weight: 600; }
 
+/* Enter the archive / View the map - side by side. */
+.fx-hero__ctas { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 1.8rem 0 0; }
 .fx-hero__cta, .fx-hero__cta:visited {
-	display: inline-block;
-	margin-top: 1.8rem;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
 	padding: 0.7rem 1.3rem;
 	border: 1px solid rgba(221, 221, 221, 0.55);
 	color: var(--ink);
@@ -166,6 +169,8 @@ img { display: block; max-width: 100%; }
 }
 
 .fx-hero__cta:hover { background: var(--ink); color: var(--bg); text-decoration: none; }
+.fx-hero__cta--map svg { color: var(--accent); }
+.fx-hero__cta--map:hover svg { color: var(--bg); }
 
 .fx-hero__caption {
 	position: absolute;
