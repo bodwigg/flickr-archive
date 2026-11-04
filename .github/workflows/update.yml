@@ -1,11 +1,16 @@
 # Varje natt: export från Flickr (nya/ändrade foton, album, upp till 1 000 nya EXIF),
 # commit av data/ om något ändrats, bygge av dist/ och publicering på
 # GitHub Pages (ulfbodin.se/flickr-archive/). Kan också köras för hand under Actions.
-name: Update from Flickr
+# En push av kod eller config (inte data/) bygger och publicerar direkt - utan export.
+name: Update archive
 
 on:
   schedule:
     - cron: "17 2 * * *"  # 03.17 svensk vintertid
+  push:
+    branches: [main]
+    paths-ignore:
+      - "data/**"
   workflow_dispatch:
     inputs:
       exif:
@@ -39,11 +44,13 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Export från Flickr
+        if: github.event_name != 'push'
         env:
           FLICKR_API_KEY: ${{ secrets.FLICKR_API_KEY }}
         run: python export/flickr_export.py --exif "${{ github.event.inputs.exif || '1000' }}"
 
       - name: Spara ändrade data
+        if: github.event_name != 'push'
         # Bara data/ committas - config/ är din och skrivs aldrig över av en körning.
         # Har du pushat under körningen läggs flödets commit ovanpå din (rebase);
         # data/ skrivs bara av flödet, så vid krock där gäller flödets version.
