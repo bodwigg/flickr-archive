@@ -2,7 +2,7 @@
 
 **Ulf Bodin – Photography**: a static, exhibition-style archive of my public Flickr photos, published at [ulfbodin.se/flickr-archive/](https://ulfbodin.se/flickr-archive/).
 
-Photos are loaded from Flickr and every image links back to its Flickr page. Background and decisions: [docs/BRIEF.md](docs/BRIEF.md).
+Photos are loaded from Flickr and every image links back to its Flickr page.
 
 ## Kom igång
 
