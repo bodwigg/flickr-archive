@@ -912,3 +912,12 @@ img { display: block; max-width: 100%; }
 .fx-viewer__info .fx-v-links button:hover { color: var(--accent-hover); text-decoration: underline; }
 .fx-v-flickr { font-weight: 600; }
 .fx-wall__loading { color: var(--ink-faint); text-align: center; padding: 3rem 0; }
+
+/* --- Gear: the cameras and the focal lengths as strips (the year strip's cards), the lenses as rows --- */
+.fx-gear__head { margin: 2.6rem 0 1rem; color: var(--ink-bright); font-family: var(--display); font-weight: 500; font-size: 1.5rem; letter-spacing: -0.02em; }
+.fx-gear__head:first-of-type { margin-top: 0; }
+.fx-gear__head span { margin-left: 0.5rem; color: var(--ink-faint); font-family: var(--sans); font-size: 0.8rem; font-weight: 400; letter-spacing: 0; }
+.fx-gear__strip { display: flex; align-items: flex-end; gap: 0.5rem; overflow-x: auto; padding-bottom: 1rem; scrollbar-width: thin; scrollbar-color: var(--bg-3) transparent; }
+.fx-gear__item .fx-year__img { height: 8.5rem; width: calc(8.5rem * var(--r, 1)); }
+.fx-gear__label { font-size: 0.85rem; color: var(--ink); white-space: nowrap; }
+.fx-gear .fx-job__title { font-size: 1.35rem; }

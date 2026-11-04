@@ -37,6 +37,7 @@
 		<a href="#years">Years</a>
 		<a href="#themes">Themes</a>
 		<a href="#albums">Albums</a>
+		{% if cameras %}<a href="#gear">Gear</a>{% endif %}
 		<a href="#archive">Archive</a>
 		<a href="#about">About</a>
 	</nav>
@@ -145,6 +146,71 @@
 </section>
 {% endif %}
 
+{# Gear (config/gear.json): Canon and Sigma - the cameras over time, the focal lengths used and the lenses by mount. #}
+{% if cameras %}
+<section class="fx-section fx-gear" id="gear">
+	<header class="fx-section__head">
+		<h2 class="fx-section__title">Gear</h2>
+		<p class="fx-section__sub">Canon and Sigma – the cameras and lenses behind {{ gear_total|num }} photos, read from the photos' EXIF data. Click to see the photos.</p>
+	</header>
+
+	<h3 class="fx-gear__head">Cameras</h3>
+	<div class="fx-gear__strip">
+		{% for c in cameras %}
+		<button type="button" class="fx-year fx-gear__item" data-filter="camera" data-value="{{ c.name }}" data-label="{{ c.label }}" title="{{ c.count|num }} photos with the {{ c.label }}">
+			<span class="fx-year__img" style="--r: {{ c.picture.ratio }}"><img src="{{ c.picture.small }}" alt="" loading="lazy" data-pin="{{ c.picture.id }}"></span>
+			<span class="fx-year__bar" style="--h: {{ (c.count / camera_peak * 100)|round(1) }}%"></span>
+			<span class="fx-gear__label">{{ c.label }}</span>
+			<span class="fx-year__count">{{ c.years }} · {{ c.count|num }}</span>
+		</button>
+		{% endfor %}
+	</div>
+
+	{% if focal %}
+	<h3 class="fx-gear__head">Focal length <span>full-frame equivalent</span></h3>
+	<div class="fx-gear__strip">
+		{% for f in focal %}
+		<button type="button" class="fx-year fx-gear__item" data-filter="focal" data-value="{{ f.key }}" data-label="{{ f.label }}" title="{{ f.count|num }} photos at {{ f.label }}">
+			<span class="fx-year__img" style="--r: {{ f.picture.ratio }}"><img src="{{ f.picture.small }}" alt="" loading="lazy" data-pin="{{ f.picture.id }}"></span>
+			<span class="fx-year__bar" style="--h: {{ (f.count / focal_peak * 100)|round(1) }}%"></span>
+			<span class="fx-gear__label">{{ f.label }}</span>
+			<span class="fx-year__count">{{ f.count|num }}</span>
+		</button>
+		{% endfor %}
+	</div>
+	{% endif %}
+
+	{% if panoramas %}
+	<h3 class="fx-gear__head">Panoramas <span>{{ pano_total|num }} stitched photos, by the focal length of their frames</span></h3>
+	<div class="fx-gear__strip">
+		{% for f in panoramas %}
+		<button type="button" class="fx-year fx-gear__item" data-filter="focal" data-value="{{ f.key }}" data-label="{{ f.label }}" data-also="theme:{{ pano_theme }}" title="{{ f.count|num }} panoramas at {{ f.label }}">
+			<span class="fx-year__img" style="--r: {{ f.picture.ratio }}"><img src="{{ f.picture.small }}" alt="" loading="lazy" data-pin="{{ f.picture.id }}"></span>
+			<span class="fx-year__bar" style="--h: {{ (f.count / pano_peak * 100)|round(1) }}%"></span>
+			<span class="fx-gear__label">{{ f.label }}</span>
+			<span class="fx-year__count">{{ f.count|num }}</span>
+		</button>
+		{% endfor %}
+	</div>
+	{% endif %}
+
+	{% for g in lens_groups %}
+	<h3 class="fx-gear__head">{{ g.title }} <span>{{ g.lenses|length }} lens{% if g.lenses|length != 1 %}es{% endif %}</span></h3>
+	<ol class="fx-jobs">
+		{% for l in g.lenses %}
+		<li class="fx-job">
+			<button type="button" class="fx-job__head" data-filter="lens" data-value="{{ l.name }}" data-label="{{ l.label }}">
+				<span class="fx-job__title">{{ l.label }}</span>
+				<span class="fx-job__meta">{{ l.years }} · {{ l.count|num }} photos</span>
+			</button>
+			<span class="fx-job__pictures">{% for pic in l.pictures %}<button type="button" class="fx-job__pic" data-open="{{ pic.id }}" style="--r: {{ pic.ratio }}"><img data-src="{{ pic.src }}" alt="{{ pic.title }}" loading="lazy"></button>{% endfor %}</span>
+		</li>
+		{% endfor %}
+	</ol>
+	{% endfor %}
+</section>
+{% endif %}
+
 {# The archive: every photo as a wall, filtered and with the picture viewer. #}
 <section class="fx-section fx-archive" id="archive">
 	<header class="fx-section__head">
@@ -216,17 +282,23 @@
 
 	{% if cameras %}
 	<div class="fx-panel" id="fx-panel-how" data-panel-body="how" hidden>
-		{{ panel_head("How", "Camera and lens, from the photos' EXIF data (" ~ (exif_total|num) ~ " of " ~ (coll.total|num) ~ " photos).") }}
+		{{ panel_head("How", "Canon and Sigma cameras and lenses, from the photos' EXIF data (" ~ (exif_total|num) ~ " of " ~ (coll.total|num) ~ " photos so far).") }}
 		<div class="fx-panel__group">
 			<span class="fx-panel__label">Cameras</span>
-			<span class="fx-panel__chips">{% for c in cameras %}<button type="button" class="fx-chip fx-chip--strong" data-filter="camera" data-value="{{ c.name }}" data-panel-chip>{{ c.name }} <span>{{ c.count|num }}</span></button>{% endfor %}</span>
+			<span class="fx-panel__chips">{% for c in cameras %}<button type="button" class="fx-chip fx-chip--strong" data-filter="camera" data-value="{{ c.name }}" data-label="{{ c.label }}" data-panel-chip>{{ c.label }} <span>{{ c.count|num }}</span></button>{% endfor %}</span>
 		</div>
-		{% if lenses %}
+		{% if focal %}
 		<div class="fx-panel__group">
-			<span class="fx-panel__label">Lenses</span>
-			<span class="fx-panel__chips">{% for l in lenses %}<button type="button" class="fx-chip" data-filter="lens" data-value="{{ l.name }}" data-panel-chip>{{ l.name }} <span>{{ l.count|num }}</span></button>{% endfor %}</span>
+			<span class="fx-panel__label">Focal length (full-frame equivalent)</span>
+			<span class="fx-panel__chips">{% for f in focal %}<button type="button" class="fx-chip" data-filter="focal" data-value="{{ f.key }}" data-label="{{ f.label }}" data-panel-chip>{{ f.label }} <span>{{ f.count|num }}</span></button>{% endfor %}</span>
 		</div>
 		{% endif %}
+		{% for g in lens_groups %}
+		<div class="fx-panel__group">
+			<span class="fx-panel__label">{{ g.title }} lenses</span>
+			<span class="fx-panel__chips">{% for l in g.lenses %}<button type="button" class="fx-chip" data-filter="lens" data-value="{{ l.name }}" data-label="{{ l.label }}" data-panel-chip>{{ l.label }} <span>{{ l.count|num }}</span></button>{% endfor %}</span>
+		</div>
+		{% endfor %}
 	</div>
 	{% endif %}
 

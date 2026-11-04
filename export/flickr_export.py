@@ -40,7 +40,7 @@ EXTRAS = ",".join([
 FIELDS = [
 	"id", "server", "secret", "title", "taken", "granularity", "uploaded",
 	"lat", "lon", "license", "views", "faves", "comments",
-	"tags", "albums", "w", "h", "big", "camera", "lens", "themes",
+	"tags", "albums", "w", "h", "big", "camera", "lens", "themes", "focal",
 ]
 
 ALBUM_HELP = (
@@ -332,6 +332,15 @@ def update_tag_config(photos):
 
 # ---------------------------------------------------------------- EXIF
 
+def focal_mm(text):
+	"""EXIF:s brännvidd ("85 mm", "16.6 mm") som tal – den verkliga, inte fullformatsekvivalenten."""
+	match = re.search(r"\d+(?:\.\d+)?", text or "")
+	if not match:
+		return None
+	value = float(match.group())
+	return (int(value) if value == int(value) else round(value, 1)) if value > 0 else None
+
+
 def parse_exif(e):
 	tags = {}
 	for t in e.get("exif", []):
@@ -421,6 +430,7 @@ def write_outputs(photos, albums, show, themes, licenses, exif):
 			p["w"], p["h"], p["big"],
 			camera_index.get(e.get("camera")), lens_index.get(e.get("lens")),
 			[n for n, members in enumerate(theme_sets) if members.intersection(p["tags"])],
+			focal_mm(e.get("focal")),
 		])
 	used = sorted({p["license"] for p in photos.values()})
 	sizes = {}

@@ -32,12 +32,12 @@
 	function tr(key, values) {
 		return String(T[key] || key).replace(/\{(\w+)\}/g, function (m, k) { return values && values[k] != null ? values[k] : m; });
 	}
-	const LABELS = { geo: '', bm: tr('label_bm'), year: tr('label_year'), decade: tr('label_decade'), theme: tr('label_theme'), place: tr('label_place'), album: tr('label_album'), camera: tr('label_camera'), lens: tr('label_lens'), license: tr('label_license'), q: tr('label_q') };
-	const KEYS = ['geo', 'bm', 'year', 'decade', 'theme', 'place', 'album', 'camera', 'lens', 'license', 'q'];
+	const LABELS = { geo: '', bm: tr('label_bm'), year: tr('label_year'), decade: tr('label_decade'), theme: tr('label_theme'), place: tr('label_place'), album: tr('label_album'), camera: tr('label_camera'), lens: tr('label_lens'), focal: tr('label_focal'), license: tr('label_license'), q: tr('label_q') };
+	const KEYS = ['geo', 'bm', 'year', 'decade', 'theme', 'place', 'album', 'camera', 'lens', 'focal', 'license', 'q'];
 	const SMALL_SCREEN = window.matchMedia('(max-width: 760px)');
 	// Which panel shows which filters - and which filters a panel's counts leave out (cross-faceting).
-	const PANEL_OF = { decade: 'when', year: 'when', place: 'where', geo: 'where', theme: 'what', album: 'why', camera: 'how', lens: 'how' };
-	const GROUPS = { when: ['year', 'decade'], where: ['place', 'geo'], what: ['theme'], why: ['album'], how: ['camera', 'lens'] };
+	const PANEL_OF = { decade: 'when', year: 'when', place: 'where', geo: 'where', theme: 'what', album: 'why', camera: 'how', lens: 'how', focal: 'how' };
+	const GROUPS = { when: ['year', 'decade'], where: ['place', 'geo'], what: ['theme'], why: ['album'], how: ['camera', 'lens', 'focal'] };
 
 	function el(tag, cls, text) {
 		const node = document.createElement(tag);
@@ -80,16 +80,36 @@
 				camera: r[f.camera] == null ? null : DATA.cameras[r[f.camera]],
 				lens: r[f.lens] == null ? null : DATA.lenses[r[f.lens]],
 			};
+			// Gear (config/gear.json): the fixed lens of a camera without lens EXIF, and the focal
+			// length as full-frame equivalent (the crop factor per camera) in its bucket.
+			if (!p.lens && p.camera && GEAR.fixed[p.camera]) p.lens = GEAR.fixed[p.camera];
+			p.focal = f.focal != null ? r[f.focal] : null;
+			p.eq = p.focal ? Math.round(p.focal * (GEAR.crop[p.camera] || 1)) : null;
+			p.focalKey = focalKey(p.eq);
 			p.ratio = p.w && p.h ? Math.round(p.w / p.h * 1000) / 1000 : 1.5;
 			p.src = urlOf(p, 'z');
 			p.small = urlOf(p, 'n');
 			p.search = [p.title, p.tags.join(' '),
 				r[f.albums].map(function (i) { return albumTitle[i]; }).join(' '),
-				(r[f.themes] || []).map(function (i) { return themeLabel[i]; }).join(' ')].join(' ').toLowerCase();
+				(r[f.themes] || []).map(function (i) { return themeLabel[i]; }).join(' '),
+				GEAR.cameras[p.camera] || '', GEAR.lenses[p.lens] || p.lens || ''].join(' ').toLowerCase();
 			DATA.photos.push(p);
 			DATA.byId[p.id] = p;
 		});
 		DATA.ready = true;
+	}
+
+	const GEAR = Object.assign({ crop: {}, cameras: {}, lenses: {}, fixed: {}, focal: [] }, FX.gear || {});
+	function focalKey(eq) {
+		if (eq == null) return null;
+		for (let i = 0; i < GEAR.focal.length; i++) {
+			if (eq >= GEAR.focal[i][0] && eq <= GEAR.focal[i][1]) return GEAR.focal[i][0] + '-' + GEAR.focal[i][1];
+		}
+		return null;
+	}
+	function focalLabel(key) {
+		const b = GEAR.focal.filter(function (x) { return x[0] + '-' + x[1] === key; })[0];
+		return b ? b[2] : key;
 	}
 
 	// The same shuffled order all day (the build's date) - "Shuffled" changes from day to day.
@@ -192,6 +212,9 @@
 		if (key === 'theme') return (FX.themes || {})[value] || value;
 		if (key === 'place' || key === 'album') return ((FX.albums || {})[value] || {}).title || value;
 		if (key === 'license') return ((FX.licenses || {})[value] || [value])[0];
+		if (key === 'camera') return GEAR.cameras[value] || value;
+		if (key === 'lens') return GEAR.lenses[value] || value;
+		if (key === 'focal') return focalLabel(value);
 		if (key === 'bm') return tr('bm_value');
 		if (key === 'geo') return tr('map');
 		return value;
@@ -265,6 +288,7 @@
 			if (f.album && p.albums.indexOf(f.album) < 0) return false;
 			if (f.camera && p.camera !== f.camera) return false;
 			if (f.lens && p.lens !== f.lens) return false;
+			if (f.focal && p.focalKey !== f.focal) return false;
 			if (f.license && p.license !== f.license) return false;
 			for (let i = 0; i < terms.length; i++) if (p.search.indexOf(terms[i]) < 0) return false;
 			return true;
@@ -325,7 +349,7 @@
 	}
 	function countBy(group, key) {
 		const counts = {};
-		const test = matcher(state.filters, GROUPS[group]);
+		const test = matcher(state.filters, Array.isArray(group) ? group : GROUPS[group]);
 		DATA.photos.forEach(function (p) {
 			if (!test(p)) return;
 			key(p).forEach(function (v) { if (v != null) counts[v] = (counts[v] || 0) + 1; });
@@ -358,9 +382,13 @@
 		document.querySelectorAll('[data-panel-body="what"] [data-filter="theme"]').forEach(function (b) { setCount(b, what[b.dataset.value] || 0); });
 		const why = countBy('why', function (p) { return p.albums; });
 		document.querySelectorAll('[data-panel-body="why"] [data-filter="album"]').forEach(function (b) { setCount(b, why[b.dataset.value] || 0); });
-		const how = countBy('how', function (p) { return [p.camera == null ? null : 'c:' + p.camera, p.lens == null ? null : 'l:' + p.lens]; });
-		document.querySelectorAll('[data-panel-body="how"] [data-filter="camera"]').forEach(function (b) { setCount(b, how['c:' + b.dataset.value] || 0); });
-		document.querySelectorAll('[data-panel-body="how"] [data-filter="lens"]').forEach(function (b) { setCount(b, how['l:' + b.dataset.value] || 0); });
+		// How: camera, lens and focal length narrow each other - each leaves out only its own choice.
+		const cams = countBy(['camera'], function (p) { return [p.camera]; });
+		const lensCounts = countBy(['lens'], function (p) { return [p.lens]; });
+		const focals = countBy(['focal'], function (p) { return [p.focalKey]; });
+		document.querySelectorAll('[data-panel-body="how"] [data-filter="camera"]').forEach(function (b) { setCount(b, cams[b.dataset.value] || 0); });
+		document.querySelectorAll('[data-panel-body="how"] [data-filter="lens"]').forEach(function (b) { setCount(b, lensCounts[b.dataset.value] || 0); });
+		document.querySelectorAll('[data-panel-body="how"] [data-filter="focal"]').forEach(function (b) { setCount(b, focals[b.dataset.value] || 0); });
 		document.querySelectorAll('[data-panel-body="how"] .fx-panel__group').forEach(function (group) {
 			group.hidden = !group.querySelector('[data-panel-chip]:not([hidden])');
 		});
@@ -538,11 +566,11 @@
 			closeViewer();
 			const panel = f.closest('[data-panel-body]');
 			// A year, a theme or an album above the archive starts a new selection.
-			if (f.closest('#years, #themes, #albums')) {
+			if (f.closest('#years, #themes, #albums, #gear')) {
 				state.filters = {};
 				if (searchForm) searchForm.q.value = '';
 			}
-			const pinEl = event.target.closest('[data-pin]') || (f.closest('#years') ? f.querySelector('[data-pin]') : null);
+			const pinEl = event.target.closest('[data-pin]') || (f.classList.contains('fx-year') ? f.querySelector('[data-pin]') : null);
 			state.pin = pinEl ? pinEl.dataset.pin : null;
 			const deselect = !!panel && state.filters[f.dataset.filter] === f.dataset.value;
 			const closeAfter = !!panel && !deselect && SMALL_SCREEN.matches;
@@ -552,6 +580,11 @@
 				reload(true);
 				return;
 			}
+			// data-also: further choices made together with this one ("theme:panorama" - the panoramas strip).
+			if (f.dataset.also) f.dataset.also.split(';').forEach(function (pair) {
+				const i = pair.indexOf(':');
+				if (i > 0) state.filters[pair.slice(0, i)] = pair.slice(i + 1);
+			});
 			setFilter(f.dataset.filter, f.dataset.value, f.dataset.label, !panel || closeAfter, !!panel);
 			if (closeAfter && !panel.hidden) togglePanel(panel.dataset.panelBody);
 			return;
@@ -875,8 +908,8 @@
 		const camSlot = el('div');
 		if (p.camera || p.lens) {
 			const box = el('div', 'fx-v-tags');
-			if (p.camera) box.appendChild(filterButton('camera', p.camera, p.camera));
-			if (p.lens) box.appendChild(filterButton('lens', p.lens, p.lens));
+			if (p.camera) box.appendChild(filterButton('camera', p.camera, GEAR.cameras[p.camera] || p.camera));
+			if (p.lens) box.appendChild(filterButton('lens', p.lens, GEAR.lenses[p.lens] || p.lens));
 			row(dl, tr('v_camera'), box);
 		}
 		dl.appendChild(camSlot);
@@ -905,7 +938,10 @@
 			if (!vList || vList[vIndex] !== p) return;
 			if (d.description) descSlot.appendChild(safeHtml(d.description));
 			const e = d.exif || {};
-			const settings = [e.focal, e.aperture, e.exposure ? e.exposure + ' s' : null, e.iso ? 'ISO ' + e.iso : null].filter(Boolean);
+			// The focal length - with the full-frame equivalent for a smaller sensor.
+			const crop = GEAR.crop[p.camera] || 1;
+			const focalText = e.focal ? e.focal + (crop !== 1 && p.eq ? ' (' + p.eq + ' mm ' + tr('equiv') + ')' : '') : null;
+			const settings = [focalText, e.aperture, e.exposure ? (/s/.test(e.exposure) ? e.exposure : e.exposure + ' s') : null, e.iso ? 'ISO ' + e.iso : null].filter(Boolean);
 			if (settings.length) {
 				camSlot.appendChild(el('dt', null, tr('v_settings')));
 				camSlot.appendChild(el('dd', null, settings.join(' · ')));

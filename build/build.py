@@ -16,6 +16,7 @@ import argparse
 import collections
 import json
 import random
+import re
 import shutil
 from datetime import date, datetime
 from pathlib import Path
@@ -37,7 +38,7 @@ CDN = "https://live.staticflickr.com"
 # Texterna som skriptet behöver ({count}, {what} … fylls i av tr() i archive.js).
 SCRIPT_TEXTS = {
 	"label_bm": "Showing", "label_year": "Year", "label_decade": "Decade", "label_theme": "Theme",
-	"label_place": "Place", "label_album": "Album", "label_camera": "Camera", "label_lens": "Lens",
+	"label_place": "Place", "label_album": "Album", "label_camera": "Camera", "label_lens": "Lens", "label_focal": "Focal length", "equiv": "equiv.",
 	"label_license": "Licence", "label_q": "Search",
 	"bm_value": "bookmarks", "map": "Map", "remove": "Remove {what}", "decade": "{decade}s",
 	"count_one": "{count} photo", "count_many": "{count} photos",
@@ -105,6 +106,90 @@ class Photos:
 		}
 
 
+LENS_MOUNTS = [("RF", "RF"), ("EF-M", "EF-M"), ("EF-S", "EF-S"), ("EF", "EF")]
+MOUNT_ORDER = ["RF", "EF", "EF-S", "EF-M", "Sigma", "Other"]
+MOUNT_TITLES = {"RF": "Canon RF", "EF": "Canon EF", "EF-S": "Canon EF-S", "EF-M": "Canon EF-M", "Sigma": "Sigma", "Other": "Other lenses"}
+
+
+class Gear:
+	"""Kameror, objektiv och brännvidd (config/gear.json) – EXIF-namnen översatta till visningsnamn."""
+
+	def __init__(self, cfg, raw):
+		self.cfg = cfg
+		self.brands = [b.lower() for b in cfg.get("brands", ["Canon", "Sigma"])]
+		self.cams = cfg.get("cameras", {})
+		self.buckets = cfg.get("focal", [[0, 20], [21, 30], [31, 40], [41, 60], [61, 100], [101, 160], [161, 300], [301, 5000]])
+		self.raw_cameras = raw.get("cameras", [])
+		self.raw_lenses = raw.get("lenses", [])
+
+	def shown(self, camera):
+		return bool(camera) and any(camera.lower().startswith(b) for b in self.brands)
+
+	def camera_label(self, camera):
+		label = self.cams.get(camera, {}).get("label")
+		if label:
+			return label
+		return camera.replace("SIGMA ", "Sigma ") if camera else ""
+
+	def crop(self, camera):
+		if camera in self.cams and "crop" in self.cams[camera]:
+			return float(self.cams[camera]["crop"])
+		name = (camera or "").lower()
+		if name.startswith("sigma dp"):
+			return 1.7
+		if re.search(r"eos m\d*$|eos \d{2,4}d$|eos [7-9]\d*d$|eos rebel|eos kiss", name) and not re.search(r"eos [156]d", name):
+			return 1.6
+		return 1.0
+
+	def lens_of(self, p):
+		"""Objektivet enligt EXIF – eller kamerans fasta objektiv."""
+		camera = self.raw_cameras[p["camera"]] if p.get("camera") is not None else None
+		if p.get("lens") is not None:
+			return self.raw_lenses[p["lens"]]
+		return self.cams.get(camera, {}).get("fixed_lens")
+
+	@staticmethod
+	def mount(lens):
+		if lens.lower().startswith("sigma"):
+			return "Sigma"
+		for prefix, mount in LENS_MOUNTS:
+			if lens.startswith(prefix):
+				return mount
+		return "Other"
+
+	@staticmethod
+	def lens_label(lens):
+		"""'RF70-200mm F2.8 L IS USM' → 'RF 70–200mm F2.8 L IS USM'."""
+		label = re.sub(r"^(RF|EF-M|EF-S|EF)(?=\d)", r"\1 ", lens)
+		return re.sub(r"(?<=\d)-(?=\d)", "–", label)
+
+	def eq(self, p):
+		camera = self.raw_cameras[p["camera"]] if p.get("camera") is not None else None
+		if not p.get("focal"):
+			return None
+		return round(p["focal"] * self.crop(camera))
+
+	def bucket(self, eq):
+		for lo, hi in self.buckets:
+			if eq is not None and lo <= eq <= hi:
+				return f"{lo}-{hi}"
+		return None
+
+	def bucket_label(self, lo, hi):
+		if lo == 0:
+			return f"≤ {hi} mm"
+		if hi >= 1000:
+			return f"{lo}+ mm"
+		return f"{lo}–{hi} mm"
+
+
+def span(years):
+	years = sorted(y for y in years if y)
+	if not years:
+		return ""
+	return f"{years[0]}–{years[-1]}" if years[0] != years[-1] else str(years[0])
+
+
 def top(items, n):
 	return sorted(items, key=lambda p: (-p["faves"], -p["views"], p["id"]))[:n]
 
@@ -156,21 +241,83 @@ def build(day):
 		if not members:
 			continue
 		ys = sorted(p["year"] for p in members if p["year"])
-		span = (f"{ys[0]}–{ys[-1]}" if ys[0] != ys[-1] else str(ys[0])) if ys else ""
 		pictures = sorted(top(members, ALBUM_PICTURES), key=lambda p: p["taken"] or "")
 		album_rows.append({
-			"id": a["id"], "title": a["title"], "type": a["type"], "count": len(members), "years": span,
+			"id": a["id"], "title": a["title"], "type": a["type"], "count": len(members), "years": span(ys),
 			"pictures": [photos.card(p, "n") for p in pictures],
 		})
 	places = [a for a in album_rows if a["type"] == "place"]
 	why = [a for a in album_rows if a["type"] != "place"]
 
-	# --- utrustning (EXIF) och licenser
-	cam_count = collections.Counter(p["camera"] for p in items if p["camera"] is not None)
-	lens_count = collections.Counter(p["lens"] for p in items if p["lens"] is not None)
-	cameras = [{"name": raw["cameras"][i], "count": n} for i, n in cam_count.most_common()]
-	lenses = [{"name": raw["lenses"][i], "count": n} for i, n in lens_count.most_common()]
-	exif_total = sum(1 for p in items if p["camera"] is not None)
+	# --- utrustning (config/gear.json): Canon och Sigma – kameror, brännvidd, objektiv
+	gear = Gear(read(CONFIG / "gear.json", {}), raw)
+	for p in items:
+		p["camera_name"] = raw["cameras"][p["camera"]] if p.get("camera") is not None else None
+		p["lens_name"] = gear.lens_of(p)
+		p["eq"] = gear.eq(p)
+	shown = [p for p in items if gear.shown(p["camera_name"])]
+	exif_total = sum(1 for p in items if p["camera_name"])
+
+	by_camera = collections.defaultdict(list)
+	for p in shown:
+		by_camera[p["camera_name"]].append(p)
+	cameras = []
+	for name, members in by_camera.items():
+		pic = of_the_day(top([p for p in members if p["title"]] or members, 12), day, f"camera-{name}")[0]
+		cameras.append({
+			"name": name, "label": gear.camera_label(name), "count": len(members),
+			"years": span(p["year"] for p in members), "first": min((p["taken"] or "9999") for p in members),
+			"picture": photos.card(pic, "n"),
+		})
+	cameras.sort(key=lambda c: c["first"])
+	camera_peak = max((c["count"] for c in cameras), default=1)
+
+	focal = []
+	for lo, hi in gear.buckets:
+		key = f"{lo}-{hi}"
+		members = [p for p in shown if gear.bucket(p["eq"]) == key]
+		if not members:
+			continue
+		pic = of_the_day(top(members, 12), day, f"focal-{key}")[0]
+		focal.append({"key": key, "label": gear.bucket_label(lo, hi), "count": len(members), "picture": photos.card(pic, "n")})
+	focal_peak = max((f["count"] for f in focal), default=1)
+
+	# Panoramas: the same buckets, only the panoramas (the theme in gear.json) - stitched from
+	# frames taken at the bucket's focal length, so the span is much wider than the lens's.
+	pano_id = gear.cfg.get("panorama_theme", "panorama")
+	pano_index = next((n for n, t in enumerate(raw.get("themes", [])) if t["id"] == pano_id), None)
+	panoramas, pano_total = [], 0
+	if pano_index is not None:
+		panos = [p for p in shown if pano_index in p["themes"]]
+		pano_total = len(panos)
+		for lo, hi in gear.buckets:
+			key = f"{lo}-{hi}"
+			members = [p for p in panos if gear.bucket(p["eq"]) == key]
+			if not members:
+				continue
+			pic = of_the_day(top(members, 12), day, f"pano-{key}")[0]
+			card = photos.card(pic, "n")
+			card["ratio"] = min(card["ratio"], 3)	# a 6:1 panorama would fill the strip
+			panoramas.append({"key": key, "label": gear.bucket_label(lo, hi), "count": len(members), "picture": card})
+	pano_peak = max((f["count"] for f in panoramas), default=1)
+
+	by_lens = collections.defaultdict(list)
+	for p in shown:
+		if p["lens_name"]:
+			by_lens[p["lens_name"]].append(p)
+	mounts = collections.defaultdict(list)
+	for name, members in by_lens.items():
+		pictures = sorted(top(members, ALBUM_PICTURES), key=lambda p: p["taken"] or "")
+		mounts[gear.mount(name)].append({
+			"name": name, "label": gear.lens_label(name), "count": len(members),
+			"years": span(p["year"] for p in members), "pictures": [photos.card(p, "n") for p in pictures],
+		})
+	lens_groups = [
+		{"mount": m, "title": MOUNT_TITLES[m], "lenses": sorted(mounts[m], key=lambda l: -l["count"])}
+		for m in MOUNT_ORDER if mounts.get(m)
+	]
+	lenses = [l for g in lens_groups for l in g["lenses"]]
+	gear_total = len(shown)
 	lic_count = collections.Counter(p["license"] for p in items)
 	licenses = [
 		{"id": str(i), "name": raw["licenses"][str(i)][0], "url": raw["licenses"][str(i)][1], "count": n, "rights": i == 0}
@@ -195,13 +342,22 @@ def build(day):
 		"themes": {t["id"]: t["label"] for t in themes},
 		"licenses": {l["id"]: [l["name"], l["url"]] for l in licenses},
 		"day": day.isoformat(),
+		"gear": {
+			"crop": {c: gear.crop(c) for c in raw.get("cameras", [])},
+			"cameras": {c: gear.camera_label(c) for c in raw.get("cameras", [])},
+			"lenses": {l: gear.lens_label(l) for l in list(raw.get("lenses", [])) + [v["fixed_lens"] for v in gear.cams.values() if v.get("fixed_lens")]},
+			"fixed": {c: v["fixed_lens"] for c, v in gear.cams.items() if v.get("fixed_lens")},
+			"focal": [[lo, hi, gear.bucket_label(lo, hi)] for lo, hi in gear.buckets],
+		},
 	}
 
 	env = Environment(loader=FileSystemLoader(ROOT / "templates"), autoescape=select_autoescape(["html"]))
 	env.filters["num"] = num
 	html = env.get_template("index.html").render(
 		site=site, coll=coll, hero=hero, years=years, when=when, themes=themes, themes_shown=THEMES_SHOWN,
-		albums=album_rows, places=places, why=why, cameras=cameras, lenses=lenses, exif_total=exif_total,
+		albums=album_rows, places=places, why=why, cameras=cameras, camera_peak=camera_peak, focal=focal, focal_peak=focal_peak,
+		lens_groups=lens_groups, lenses=lenses, panoramas=panoramas, pano_peak=pano_peak,
+		pano_total=pano_total, pano_theme=pano_id, exif_total=exif_total, gear_total=gear_total,
 		licenses=licenses, fx=fx, version=datetime.now().strftime("%Y%m%d%H%M"),
 	)
 
@@ -215,7 +371,8 @@ def build(day):
 	(DIST / "index.html").write_text(html, encoding="utf-8", newline="\n")
 	(DIST / ".nojekyll").write_text("", encoding="utf-8")
 	print(f"dist/ byggd för {day}: {len(items)} foton, {len(hero)} hero, {len(years)} år, "
-		f"{len(themes)} teman, {len(album_rows)} album, index.html {len(html) // 1024} kB")
+		f"{len(themes)} teman, {len(album_rows)} album, {len(cameras)} kameror, {len(lenses)} objektiv, "
+		f"index.html {len(html) // 1024} kB")
 
 
 def main():

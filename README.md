@@ -45,6 +45,7 @@ python -m http.server -d dist 8000       → http://localhost:8000/
 | Fil | Innehåll |
 |---|---|
 | `config/site.json` | Sidans texter: titel, presentation, länkar |
+| `config/gear.json` | Delen Gear: märken som visas (Canon, Sigma), visningsnamn, cropfaktor per kamera (för fullformatsekvivalent brännvidd), fasta objektiv och brännviddsfacken |
 | `config/hero.json` | Handplockade hero-bilder (portfolion) + slumpurvalets storlek |
 | `templates/index.html` | Sidan (Jinja2) – upplägget från Radius "månadens" |
 | `static/archive.css`, `static/archive.js` | Stil och skript; filtreringen sker i webbläsaren mot `data/photos.json` |

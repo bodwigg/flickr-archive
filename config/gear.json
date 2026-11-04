@@ -1,0 +1,14 @@
+{
+	"help": "Delen Gear på sidan. 'brands': kameror vars namn börjar så visas (övriga finns kvar i arkivet). 'cameras': per EXIF-namn – 'label' (visningsnamn), 'crop' (sensorns cropfaktor, för fullformatsekvivalent brännvidd) och 'fixed_lens' (objektivet för kameror med fast objektiv). Kameror som inte står här får crop efter namnet: EOS M och EOS nnnD 1.6, Sigma DP 1.7, övriga 1.0. 'focal': brännviddsfacken i mm (fullformatsekvivalent). 'panorama_theme': temat (config/tags.json) vars bilder visas i remsan Panoramas – efter den brännvidd råbilderna togs med.",
+	"brands": ["Canon", "Sigma"],
+	"cameras": {
+		"SIGMA DP1": {"label": "Sigma DP1", "crop": 1.7, "fixed_lens": "Sigma 16.6mm F4"},
+		"SIGMA DP2": {"label": "Sigma DP2", "crop": 1.7, "fixed_lens": "Sigma 24.2mm F2.8"},
+		"Canon EOS 550D": {"crop": 1.6},
+		"Canon EOS 500D": {"crop": 1.6},
+		"Canon EOS M": {"crop": 1.6},
+		"Canon EOS M3": {"crop": 1.6}
+	},
+	"panorama_theme": "panorama",
+	"focal": [[0, 20], [21, 30], [31, 40], [41, 60], [61, 100], [101, 160], [161, 300], [301, 5000]]
+}
