@@ -718,7 +718,7 @@
 		if (key === mapKey) return;
 		mapKey = key;
 		if (mapGroup) map.removeLayer(mapGroup);
-		mapGroup = L.markerClusterGroup ? L.markerClusterGroup({ maxClusterRadius: 40 }) : L.featureGroup();
+		mapGroup = L.markerClusterGroup ? L.markerClusterGroup({ maxClusterRadius: 40, showCoverageOnHover: false }) : L.featureGroup();
 		const points = state.list.filter(function (p) { return p.lat != null; });
 		points.forEach(function (p) {
 			const icon = L.divIcon({ className: 'fx-map__dot', iconSize: [14, 14] });
