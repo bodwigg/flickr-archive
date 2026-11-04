@@ -332,6 +332,16 @@ def update_tag_config(photos):
 
 # ---------------------------------------------------------------- EXIF
 
+def camera_name(name):
+	"""Märke + modell utan upprepning: 'Canon Canon EOS R' → 'Canon EOS R'."""
+	if not name:
+		return name
+	words = name.split()
+	if len(words) > 1 and words[0].lower() == words[1].lower():
+		words = words[1:]
+	return " ".join(words)
+
+
 def focal_mm(text):
 	"""EXIF:s brännvidd ("85 mm", "16.6 mm") som tal – den verkliga, inte fullformatsekvivalenten."""
 	match = re.search(r"\d+(?:\.\d+)?", text or "")
@@ -350,7 +360,7 @@ def parse_exif(e):
 		value = (value or "").strip()
 		return None if value in ("", "0", "----", "Unknown") or set(value) <= {"-", " ", "0", "."} else value
 
-	camera = clean(e.get("camera")) or clean(" ".join(filter(None, (tags.get("Make"), tags.get("Model")))))
+	camera = camera_name(clean(e.get("camera")) or clean(" ".join(filter(None, (tags.get("Make"), tags.get("Model"))))))
 	lens = next((clean(tags.get(t)) for t in LENS_TAGS if clean(tags.get(t))), None)
 	record = {
 		"camera": camera,
@@ -407,6 +417,9 @@ def write_outputs(photos, albums, show, themes, licenses, exif):
 	tag_count = collections.Counter(t for p in photos.values() for t in p["tags"])
 	tag_list = [t for t, _ in sorted(tag_count.items(), key=lambda x: (-x[1], x[0]))]
 	tag_index = {t: n for n, t in enumerate(tag_list)}
+
+	# Namn i cachen från före camera_name() rättas här.
+	exif = {pid: ({**e, "camera": camera_name(e["camera"])} if e.get("camera") else e) for pid, e in exif.items()}
 
 	def indexed(key):
 		count = collections.Counter(exif.get(pid, {}).get(key) for pid in photos)
