@@ -137,7 +137,7 @@
 	</header>
 	<ol class="fx-jobs">
 		{% for a in albums %}
-		<li class="fx-job">
+		<li class="fx-job"{% if loop.index > albums_shown %} data-album-more hidden{% endif %}>
 			<button type="button" class="fx-job__head" data-filter="{{ 'place' if a.type == 'place' else 'album' }}" data-value="{{ a.id }}" data-label="{{ a.title }}">
 				<span class="fx-job__title">{{ a.title }}</span>
 				<span class="fx-job__meta">{{ a.years }} · {{ a.count|num }} photos</span>
@@ -146,6 +146,9 @@
 		</li>
 		{% endfor %}
 	</ol>
+	{% if albums|length > albums_shown %}
+	<p class="fx-more"><button type="button" class="fx-more__btn" data-albums-more data-less="Show fewer albums">Show more albums ({{ albums|length - albums_shown }})</button></p>
+	{% endif %}
 </section>
 {% endif %}
 
@@ -236,7 +239,7 @@
 			<button type="button" class="fx-facet fx-facet--bookmarks" data-bookmarks-toggle aria-pressed="false" hidden>★<span class="fx-facet__label"> Bookmarks</span><span class="fx-facet__count" data-bookmarks-count></span></button>
 		</div>
 		<div class="fx-order" role="group" aria-label="Order">
-			<button type="button" class="fx-order__btn" data-order="time" aria-pressed="true" title="Oldest first – click for newest first" data-asc="Oldest first – click for newest first" data-desc="Newest first – click for oldest first">Chronological <span class="fx-order__dir" data-order-dir aria-hidden="true">↑</span></button>
+			<button type="button" class="fx-order__btn" data-order="time" aria-pressed="true" title="Newest first – click for oldest first" data-asc="Oldest first – click for newest first" data-desc="Newest first – click for oldest first">Chronological <span class="fx-order__dir" data-order-dir aria-hidden="true">↓</span></button>
 			<button type="button" class="fx-order__btn" data-order="random" aria-pressed="false">Shuffled</button>
 		</div>
 	</div>

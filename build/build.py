@@ -31,6 +31,7 @@ DIST = ROOT / "dist"
 HERO_PICKED = 6		# handplockade per dag
 HERO_RANDOM = 6		# därefter slumpbilder
 THEMES_SHOWN = 12	# teman som syns direkt, resten bakom "Show more themes"
+ALBUMS_SHOWN = 10	# album som syns direkt, resten bakom "Show more albums"
 ALBUM_PICTURES = 20	# bilder per albumrad (bara de som får plats laddas)
 YEAR_MIN = 3		# år med färre bilder hoppas över i tidslinjen
 CDN = "https://live.staticflickr.com"
@@ -40,7 +41,7 @@ SCRIPT_TEXTS = {
 	"label_bm": "Showing", "label_year": "Year", "label_decade": "Decade", "label_theme": "Theme",
 	"label_place": "Place", "label_album": "Album", "label_camera": "Camera", "label_lens": "Lens", "label_focal": "Focal length", "equiv": "equiv.",
 	"label_license": "Licence", "label_q": "Search",
-	"bm_value": "bookmarks", "map": "Map", "remove": "Remove {what}", "decade": "{decade}s",
+	"bm_value": "bookmarks", "map": "Map", "map_fullscreen": "Full screen", "map_fullscreen_exit": "Exit full screen", "map_opacity": "Background map", "map_map": "Map", "map_satellite": "Satellite", "remove": "Remove {what}", "decade": "{decade}s",
 	"count_one": "{count} photo", "count_many": "{count} photos",
 	"bm_remove": "Remove the bookmark", "bm_add": "Bookmark the photo", "bookmark": "Bookmark", "bookmarked": "Bookmarked",
 	"loading": "Loading photos …", "none_bm": "No bookmarked photos yet – click the star on a photo.",
@@ -123,7 +124,12 @@ class Gear:
 		self.raw_lenses = raw.get("lenses", [])
 
 	def shown(self, camera):
-		return bool(camera) and any(camera.lower().startswith(b) for b in self.brands)
+		if not camera:
+			return False
+		name = camera.lower()
+		if any(name.startswith(x.lower()) for x in self.cfg.get("exclude_cameras", [])):
+			return False
+		return any(name.startswith(b) for b in self.brands)
 
 	def camera_label(self, camera):
 		label = self.cams.get(camera, {}).get("label")
@@ -314,7 +320,7 @@ def build(day):
 		})
 	lens_groups = [
 		{"mount": m, "title": MOUNT_TITLES[m], "lenses": sorted(mounts[m], key=lambda l: -l["count"])}
-		for m in MOUNT_ORDER if mounts.get(m)
+		for m in MOUNT_ORDER if mounts.get(m) and m not in gear.cfg.get("hide_mounts", [])
 	]
 	lenses = [l for g in lens_groups for l in g["lenses"]]
 	gear_total = len(shown)
@@ -354,7 +360,7 @@ def build(day):
 	env = Environment(loader=FileSystemLoader(ROOT / "templates"), autoescape=select_autoescape(["html"]))
 	env.filters["num"] = num
 	html = env.get_template("index.html").render(
-		site=site, coll=coll, hero=hero, years=years, when=when, themes=themes, themes_shown=THEMES_SHOWN,
+		site=site, coll=coll, hero=hero, years=years, when=when, themes=themes, themes_shown=THEMES_SHOWN, albums_shown=ALBUMS_SHOWN,
 		albums=album_rows, places=places, why=why, cameras=cameras, camera_peak=camera_peak, focal=focal, focal_peak=focal_peak,
 		lens_groups=lens_groups, lenses=lenses, panoramas=panoramas, pano_peak=pano_peak,
 		pano_total=pano_total, pano_theme=pano_id, exif_total=exif_total, gear_total=gear_total,

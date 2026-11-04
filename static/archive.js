@@ -185,7 +185,7 @@
 	}
 
 	// --- state -------------------------------------------------------------------------------------
-	const state = { filters: {}, labels: {}, order: 'time', next: 0, done: false, items: [], list: [], auto: 0, pin: null };
+	const state = { filters: {}, labels: {}, order: 'time_desc', next: 0, done: false, items: [], list: [], auto: 0, pin: null };
 	// The wall fills itself as it is scrolled - AUTO_PAGES pages at a time, then a button:
 	// otherwise the footer (About) could never be reached.
 	const PAGE = 60;
@@ -194,7 +194,8 @@
 	(function fromUrl() {
 		const params = new URLSearchParams(window.location.search);
 		KEYS.forEach(function (k) { if (params.get(k)) state.filters[k] = params.get(k); });
-		if (params.get('order') === 'random' || params.get('order') === 'time_desc') state.order = params.get('order');
+		// Newest first unless the address says otherwise (order=time: oldest first, order=random).
+		if (['time', 'random', 'time_desc'].indexOf(params.get('order')) >= 0) state.order = params.get('order');
 	})();
 
 	function toUrl() {
@@ -202,7 +203,7 @@
 		KEYS.forEach(function (k) { url.searchParams.delete(k); });
 		url.searchParams.delete('order');
 		Object.keys(state.filters).forEach(function (k) { url.searchParams.set(k, state.filters[k]); });
-		if (state.order !== 'time') url.searchParams.set('order', state.order);
+		if (state.order !== 'time_desc') url.searchParams.set('order', state.order);
 		history.replaceState(null, '', url);
 	}
 
@@ -593,7 +594,9 @@
 		if (panelButton) { togglePanel(panelButton.dataset.panel); return; }
 		const o = event.target.closest('[data-order]');
 		if (o) {
-			state.order = o.dataset.order === 'time' && state.order === 'time' ? 'time_desc' : o.dataset.order;
+			// Chronological: a click on the pressed button turns it (newest ↔ oldest first); from Shuffled back to newest first.
+			if (o.dataset.order === 'time') state.order = state.order === 'time_desc' ? 'time' : 'time_desc';
+			else state.order = o.dataset.order;
 			reload(false);
 			return;
 		}
@@ -638,6 +641,20 @@
 	});
 
 	// "Show more themes": the hidden theme tiles (their pictures load when shown).
+	// "Show more albums": the albums after the first ten (their rows fill when shown).
+	const moreAlbums = document.querySelector('[data-albums-more]');
+	if (moreAlbums) {
+		const moreText = moreAlbums.textContent;
+		moreAlbums.addEventListener('click', function () {
+			const extra = document.querySelectorAll('[data-album-more]');
+			const show = extra.length && extra[0].hidden;
+			extra.forEach(function (row) { row.hidden = !show; });
+			moreAlbums.textContent = show ? moreAlbums.dataset.less : moreText;
+			if (show) fillAlbumRows();
+			else document.getElementById('albums').scrollIntoView({ behavior: 'smooth', block: 'start' });
+		});
+	}
+
 	const moreThemes = document.querySelector('[data-themes-more]');
 	if (moreThemes) {
 		const moreText = moreThemes.textContent;
@@ -681,9 +698,16 @@
 		if (!show || !window.L) return;
 		if (!map) {
 			map = L.map(mapEl, { scrollWheelZoom: false });
-			L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-				maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-			}).addTo(map);
+			const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+				maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+			});
+			// Satellite: Esri World Imagery, as on ulfbodin.se/gotland.html.
+			const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+				maxZoom: 19, attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+			});
+			mapBase(map, { osm: osm, satellite: satellite });
+			mapFullscreen(map);
+			mapOpacity(map, [osm, satellite]);
 			mapEmpty = el('p', 'fx-map__empty', tr('map_empty'));
 			mapEmpty.hidden = true;
 			mapEl.appendChild(mapEmpty);
@@ -711,6 +735,158 @@
 		if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
 		else if (!map._loaded) map.setView([60, 15], 4);
 	}
+
+	// Full screen (from Radius's static/map-fullscreen.js): a button below the zoom buttons lays the
+	// map over the whole window (position: fixed, not the browser's Fullscreen API - the picture
+	// viewer still opens above it and Escape works). Scroll-wheel zoom only in full screen.
+	const ICON_FS_OPEN = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>';
+	const ICON_FS_CLOSE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>';
+	let mapIsFull = false;
+	let setMapFull = function () {};
+	function mapFullscreen(m) {
+		const container = m.getContainer();
+		let button = null;
+		setMapFull = function (on) {
+			if (on === mapIsFull) return;
+			mapIsFull = on;
+			const center = m.getCenter();
+			container.classList.toggle('map--fullscreen', on);
+			document.documentElement.classList.toggle('has-map-fullscreen', on);
+			if (on) m.scrollWheelZoom.enable(); else m.scrollWheelZoom.disable();
+			const text = on ? tr('map_fullscreen_exit') : tr('map_fullscreen');
+			// The icon is swapped after the click - otherwise Leaflet takes the click for the map's.
+			setTimeout(function () { button.innerHTML = on ? ICON_FS_CLOSE : ICON_FS_OPEN; }, 0);
+			button.title = text;
+			button.setAttribute('aria-label', text);
+			button.setAttribute('aria-pressed', on ? 'true' : 'false');
+			requestAnimationFrame(function () {
+				m.invalidateSize();
+				m.setView(center, m.getZoom(), { animate: false });
+			});
+		};
+		const Control = L.Control.extend({
+			options: { position: 'topleft' },
+			onAdd: function () {
+				const bar = L.DomUtil.create('div', 'leaflet-bar map-fullscreen');
+				button = L.DomUtil.create('a', 'map-fullscreen__button', bar);
+				button.href = '#';
+				button.setAttribute('role', 'button');
+				button.innerHTML = ICON_FS_OPEN;
+				button.title = tr('map_fullscreen');
+				button.setAttribute('aria-label', button.title);
+				button.setAttribute('aria-pressed', 'false');
+				L.DomEvent.disableClickPropagation(bar);
+				button.addEventListener('click', function (event) { event.preventDefault(); setMapFull(!mapIsFull); });
+				return bar;
+			},
+		});
+		new Control().addTo(m);
+	}
+
+	// The background map's visibility (from Radius's static/map-opacity.js): a button at the top right
+	// unfolds a slider; the dots stay as they are, so they stand out when the background is dimmed.
+	// The value is remembered in the browser.
+	const OPACITY_KEY = 'ulfbodin:map-opacity';
+	function storedOpacity() {
+		try {
+			const v = parseFloat(localStorage.getItem(OPACITY_KEY));
+			return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1;
+		} catch (err) { return 1; }
+	}
+	function mapOpacity(m, layers) {
+		const text = tr('map_opacity');
+		const tiles = { setOpacity: function (v) { layers.forEach(function (l) { l.setOpacity(v); }); } };
+		tiles.setOpacity(storedOpacity());
+		const Control = L.Control.extend({
+			options: { position: 'topright' },
+			onAdd: function () {
+				const box = L.DomUtil.create('div', 'leaflet-bar map-opacity');
+				const button = L.DomUtil.create('a', 'map-opacity__button', box);
+				button.href = '#';
+				button.title = text;
+				button.setAttribute('role', 'button');
+				button.setAttribute('aria-label', text);
+				button.setAttribute('aria-expanded', 'false');
+				button.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg>';
+				const panel = L.DomUtil.create('div', 'map-opacity__panel', box);
+				panel.hidden = true;
+				L.DomUtil.create('span', 'map-opacity__label', panel).textContent = text;
+				const input = L.DomUtil.create('input', 'map-opacity__range', panel);
+				input.type = 'range'; input.min = '0'; input.max = '100'; input.step = '5';
+				input.value = String(Math.round(storedOpacity() * 100));
+				input.setAttribute('aria-label', text);
+				const value = L.DomUtil.create('span', 'map-opacity__value', panel);
+				function showValue(v) {
+					value.textContent = Math.round(v * 100) + '%';
+					box.classList.toggle('map-opacity--dimmed', v < 1);
+				}
+				showValue(storedOpacity());
+				function setOpen(open) {
+					panel.hidden = !open;
+					button.setAttribute('aria-expanded', open ? 'true' : 'false');
+					box.classList.toggle('map-opacity--open', open);
+					if (open) input.focus();
+				}
+				L.DomEvent.disableClickPropagation(box);
+				L.DomEvent.disableScrollPropagation(box);
+				button.addEventListener('click', function (event) { event.preventDefault(); setOpen(panel.hidden); });
+				document.addEventListener('click', function (event) { if (!panel.hidden && !box.contains(event.target)) setOpen(false); });
+				box.addEventListener('keydown', function (event) {
+					if (event.key === 'Escape' && !panel.hidden) { event.stopPropagation(); setOpen(false); button.focus(); }
+				});
+				input.addEventListener('input', function () {
+					const v = Number(input.value) / 100;
+					tiles.setOpacity(v);
+					showValue(v);
+					try { localStorage.setItem(OPACITY_KEY, String(v)); } catch (err) { /* no storage */ }
+				});
+				return box;
+			},
+		});
+		new Control().addTo(m);
+	}
+	// Map | Satellite (from ulfbodin.se/gotland.html): a two-part switch at the top right; the choice
+	// is remembered in the browser. The visibility slider applies to both.
+	const BASE_KEY = 'ulfbodin:map-base';
+	function mapBase(m, layers) {
+		let current = 'osm';
+		try { if (layers[localStorage.getItem(BASE_KEY)]) current = localStorage.getItem(BASE_KEY); } catch (err) { /* no storage */ }
+		layers[current].addTo(m);
+		const Control = L.Control.extend({
+			options: { position: 'topright' },
+			onAdd: function () {
+				const bar = L.DomUtil.create('div', 'leaflet-bar map-base');
+				bar.setAttribute('role', 'group');
+				const buttons = {};
+				[['osm', tr('map_map')], ['satellite', tr('map_satellite')]].forEach(function (pair) {
+					const b = L.DomUtil.create('a', 'map-base__button', bar);
+					b.href = '#';
+					b.setAttribute('role', 'button');
+					b.textContent = pair[1];
+					b.setAttribute('aria-pressed', pair[0] === current ? 'true' : 'false');
+					b.addEventListener('click', function (event) {
+						event.preventDefault();
+						if (pair[0] === current) return;
+						m.removeLayer(layers[current]);
+						current = pair[0];
+						layers[current].addTo(m);
+						layers[current].bringToBack();
+						Object.keys(buttons).forEach(function (k) { buttons[k].setAttribute('aria-pressed', k === current ? 'true' : 'false'); });
+						try { localStorage.setItem(BASE_KEY, current); } catch (err) { /* no storage */ }
+					});
+					buttons[pair[0]] = b;
+				});
+				L.DomEvent.disableClickPropagation(bar);
+				return bar;
+			},
+		});
+		new Control().addTo(m);
+	}
+
+	// Escape leaves the map's full screen - unless the picture viewer is open above it.
+	document.addEventListener('keydown', function (event) {
+		if (event.key === 'Escape' && mapIsFull && viewer.hidden) setMapFull(false);
+	});
 
 	// --- the picture viewer ------------------------------------------------------------------------
 	const viewer = document.querySelector('[data-viewer]');
