@@ -1200,7 +1200,10 @@
 	}).then(decode);
 	Promise.all([dataReady, bmReady]).then(function () {
 		statusEl.textContent = '';
+		// Opened with choices in the address (a link to the map, a year, an album …): straight to the archive.
+		const linked = Object.keys(state.filters).length > 0 || window.location.hash === '#archive';
 		reload(false);
+		if (linked) archive.scrollIntoView({ block: 'start' });
 		if (state.filters.geo) window.addEventListener('load', function () { showMap(true); });
 	}).catch(function (err) {
 		if (window.console) console.error('archive: photos.json', err);
