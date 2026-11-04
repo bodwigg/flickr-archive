@@ -7,7 +7,8 @@
 		"Canon EOS 550D": {"crop": 1.6},
 		"Canon EOS 500D": {"crop": 1.6},
 		"Canon EOS M": {"crop": 1.6},
-		"Canon EOS M3": {"crop": 1.6}
+		"Canon EOS M3": {"crop": 1.6},
+		"Canon PowerShot S100": {"crop": 4.6}
 	},
 	"panorama_theme": "panorama",
 	"focal": [[0, 20], [21, 30], [31, 40], [41, 60], [61, 100], [101, 160], [161, 300], [301, 5000]]
