@@ -675,6 +675,20 @@
 	});
 
 	// "Show more themes": the hidden theme tiles (their pictures load when shown).
+	// Gear: the chips show one part at a time (cameras, focal length, panoramas, a mount's lenses).
+	// The lens rows fill when their part is shown.
+	document.querySelectorAll('[data-gear-tab]').forEach(function (tab) {
+		tab.addEventListener('click', function () {
+			document.querySelectorAll('[data-gear-tab]').forEach(function (t) {
+				t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+			});
+			document.querySelectorAll('[data-gear-panel]').forEach(function (panel) {
+				panel.hidden = panel.dataset.gearPanel !== tab.dataset.gearTab;
+			});
+			fillAlbumRows();
+		});
+	});
+
 	// "Show more albums": the albums after the first ten (their rows fill when shown).
 	const moreAlbums = document.querySelector('[data-albums-more]');
 	if (moreAlbums) {

@@ -960,3 +960,10 @@ img { display: block; max-width: 100%; }
 .fx-map .leaflet-bar.map-base a:last-child { border-right: 0; }
 .fx-map .leaflet-bar.map-base a[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
 .fx-job[hidden] { display: none; }
+
+/* Gear as tabs: the chips choose the part; the chosen chip filled like a pressed filter chip. */
+.fx-gear__tabs { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0 0 1.4rem; }
+.fx-gear__tabs .fx-chip[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.fx-gear__tabs .fx-chip[aria-selected="true"] span { color: var(--bg); opacity: 0.7; }
+.fx-gear__panel[hidden] { display: none; }
+.fx-gear__hint { margin: 0 0 1rem; color: var(--ink-faint); font-size: 0.85rem; }

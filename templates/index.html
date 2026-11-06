@@ -160,59 +160,75 @@
 		<p class="fx-section__sub">Canon and Sigma – the cameras and lenses behind {{ gear_total|num }} photos, read from the photos' EXIF data. Click to see the photos.</p>
 	</header>
 
-	<h3 class="fx-gear__head">Cameras</h3>
-	<div class="fx-gear__strip">
-		{% for c in cameras %}
-		<button type="button" class="fx-year fx-gear__item" data-filter="camera" data-value="{{ c.name }}" data-label="{{ c.label }}" title="{{ c.count|num }} photos with the {{ c.label }}">
-			<span class="fx-year__img" style="--r: {{ c.picture.ratio }}"><img src="{{ c.picture.small }}" alt="" loading="lazy" data-pin="{{ c.picture.id }}"></span>
-			<span class="fx-year__bar" style="--h: {{ (c.count / camera_peak * 100)|round(1) }}%"></span>
-			<span class="fx-gear__label">{{ c.label }}</span>
-			<span class="fx-year__count">{{ c.years }} · {{ c.count|num }}</span>
-		</button>
-		{% endfor %}
+	{# One part at a time: the chips choose which (static/archive.js: data-gear-tab). #}
+	<div class="fx-gear__tabs" role="tablist" aria-label="Gear">
+		<button type="button" class="fx-chip" role="tab" data-gear-tab="cameras" aria-selected="true" aria-controls="fx-gear-cameras">Cameras <span>{{ cameras|length }}</span></button>
+		{% if focal %}<button type="button" class="fx-chip" role="tab" data-gear-tab="focal" aria-selected="false" aria-controls="fx-gear-focal">Focal length</button>{% endif %}
+		{% if panoramas %}<button type="button" class="fx-chip" role="tab" data-gear-tab="panoramas" aria-selected="false" aria-controls="fx-gear-panoramas">Panoramas <span>{{ pano_total|num }}</span></button>{% endif %}
+		{% for g in lens_groups %}<button type="button" class="fx-chip" role="tab" data-gear-tab="lens-{{ g.mount|lower }}" aria-selected="false" aria-controls="fx-gear-lens-{{ g.mount|lower }}">{{ g.title }} <span>{{ g.lenses|length }}</span></button>{% endfor %}
+	</div>
+
+	<div class="fx-gear__panel" id="fx-gear-cameras" role="tabpanel" data-gear-panel="cameras">
+		<p class="fx-gear__hint">The camera bodies over the years – the bar shows how many photos each has.</p>
+		<div class="fx-gear__strip">
+			{% for c in cameras %}
+			<button type="button" class="fx-year fx-gear__item" data-filter="camera" data-value="{{ c.name }}" data-label="{{ c.label }}" title="{{ c.count|num }} photos with the {{ c.label }}">
+				<span class="fx-year__img" style="--r: {{ c.picture.ratio }}"><img src="{{ c.picture.small }}" alt="" loading="lazy" data-pin="{{ c.picture.id }}"></span>
+				<span class="fx-year__bar" style="--h: {{ (c.count / camera_peak * 100)|round(1) }}%"></span>
+				<span class="fx-gear__label">{{ c.label }}</span>
+				<span class="fx-year__count">{{ c.years }} · {{ c.count|num }}</span>
+			</button>
+			{% endfor %}
+		</div>
 	</div>
 
 	{% if focal %}
-	<h3 class="fx-gear__head">Focal length <span>full-frame equivalent</span></h3>
-	<div class="fx-gear__strip">
-		{% for f in focal %}
-		<button type="button" class="fx-year fx-gear__item" data-filter="focal" data-value="{{ f.key }}" data-label="{{ f.label }}" title="{{ f.count|num }} photos at {{ f.label }}">
-			<span class="fx-year__img" style="--r: {{ f.picture.ratio }}"><img src="{{ f.picture.small }}" alt="" loading="lazy" data-pin="{{ f.picture.id }}"></span>
-			<span class="fx-year__bar" style="--h: {{ (f.count / focal_peak * 100)|round(1) }}%"></span>
-			<span class="fx-gear__label">{{ f.label }}</span>
-			<span class="fx-year__count">{{ f.count|num }}</span>
-		</button>
-		{% endfor %}
+	<div class="fx-gear__panel" id="fx-gear-focal" role="tabpanel" data-gear-panel="focal" hidden>
+		<p class="fx-gear__hint">The focal length the photos were taken at, as full-frame equivalent.</p>
+		<div class="fx-gear__strip">
+			{% for f in focal %}
+			<button type="button" class="fx-year fx-gear__item" data-filter="focal" data-value="{{ f.key }}" data-label="{{ f.label }}" title="{{ f.count|num }} photos at {{ f.label }}">
+				<span class="fx-year__img" style="--r: {{ f.picture.ratio }}"><img src="{{ f.picture.small }}" alt="" loading="lazy" data-pin="{{ f.picture.id }}"></span>
+				<span class="fx-year__bar" style="--h: {{ (f.count / focal_peak * 100)|round(1) }}%"></span>
+				<span class="fx-gear__label">{{ f.label }}</span>
+				<span class="fx-year__count">{{ f.count|num }}</span>
+			</button>
+			{% endfor %}
+		</div>
 	</div>
 	{% endif %}
 
 	{% if panoramas %}
-	<h3 class="fx-gear__head">Panoramas <span>{{ pano_total|num }} stitched photos, by the focal length of their frames</span></h3>
-	<div class="fx-gear__strip">
-		{% for f in panoramas %}
-		<button type="button" class="fx-year fx-gear__item" data-filter="focal" data-value="{{ f.key }}" data-label="{{ f.label }}" data-also="theme:{{ pano_theme }}" title="{{ f.count|num }} panoramas at {{ f.label }}">
-			<span class="fx-year__img" style="--r: {{ f.picture.ratio }}"><img src="{{ f.picture.small }}" alt="" loading="lazy" data-pin="{{ f.picture.id }}"></span>
-			<span class="fx-year__bar" style="--h: {{ (f.count / pano_peak * 100)|round(1) }}%"></span>
-			<span class="fx-gear__label">{{ f.label }}</span>
-			<span class="fx-year__count">{{ f.count|num }}</span>
-		</button>
-		{% endfor %}
+	<div class="fx-gear__panel" id="fx-gear-panoramas" role="tabpanel" data-gear-panel="panoramas" hidden>
+		<p class="fx-gear__hint">{{ pano_total|num }} stitched photos, by the focal length of their frames – the panorama itself spans much wider.</p>
+		<div class="fx-gear__strip">
+			{% for f in panoramas %}
+			<button type="button" class="fx-year fx-gear__item" data-filter="focal" data-value="{{ f.key }}" data-label="{{ f.label }}" data-also="theme:{{ pano_theme }}" title="{{ f.count|num }} panoramas at {{ f.label }}">
+				<span class="fx-year__img" style="--r: {{ f.picture.ratio }}"><img src="{{ f.picture.small }}" alt="" loading="lazy" data-pin="{{ f.picture.id }}"></span>
+				<span class="fx-year__bar" style="--h: {{ (f.count / pano_peak * 100)|round(1) }}%"></span>
+				<span class="fx-gear__label">{{ f.label }}</span>
+				<span class="fx-year__count">{{ f.count|num }}</span>
+			</button>
+			{% endfor %}
+		</div>
 	</div>
 	{% endif %}
 
 	{% for g in lens_groups %}
-	<h3 class="fx-gear__head">{{ g.title }} <span>{{ g.lenses|length }} lens{% if g.lenses|length != 1 %}es{% endif %}</span></h3>
-	<ol class="fx-jobs">
-		{% for l in g.lenses %}
-		<li class="fx-job">
-			<button type="button" class="fx-job__head" data-filter="lens" data-value="{{ l.name }}" data-label="{{ l.label }}">
-				<span class="fx-job__title">{{ l.label }}</span>
-				<span class="fx-job__meta">{{ l.years }} · {{ l.count|num }} photos</span>
-			</button>
-			<span class="fx-job__pictures">{% for pic in l.pictures %}<button type="button" class="fx-job__pic" data-open="{{ pic.id }}" style="--r: {{ pic.ratio }}"><img data-src="{{ pic.src }}" alt="{{ pic.title }}" loading="lazy"></button>{% endfor %}</span>
-		</li>
-		{% endfor %}
-	</ol>
+	<div class="fx-gear__panel" id="fx-gear-lens-{{ g.mount|lower }}" role="tabpanel" data-gear-panel="lens-{{ g.mount|lower }}" hidden>
+		<p class="fx-gear__hint">{{ g.lenses|length }} lens{% if g.lenses|length != 1 %}es{% endif %}, the most used first.</p>
+		<ol class="fx-jobs">
+			{% for l in g.lenses %}
+			<li class="fx-job">
+				<button type="button" class="fx-job__head" data-filter="lens" data-value="{{ l.name }}" data-label="{{ l.label }}">
+					<span class="fx-job__title">{{ l.label }}</span>
+					<span class="fx-job__meta">{{ l.years }} · {{ l.count|num }} photos</span>
+				</button>
+				<span class="fx-job__pictures">{% for pic in l.pictures %}<button type="button" class="fx-job__pic" data-open="{{ pic.id }}" style="--r: {{ pic.ratio }}"><img data-src="{{ pic.src }}" alt="{{ pic.title }}" loading="lazy"></button>{% endfor %}</span>
+			</li>
+			{% endfor %}
+		</ol>
+	</div>
 	{% endfor %}
 </section>
 {% endif %}
