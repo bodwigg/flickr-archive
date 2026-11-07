@@ -33,7 +33,7 @@ CONFIG = ROOT / "config"
 DIST = ROOT / "dist"
 
 HERO_PICKED = 6		# handplockade per dag
-HERO_RANDOM = 6		# därefter slumpbilder
+HERO_RANDOM = 6		# därefter slumpbilder (Explore + mest favoritmarkerade)
 THEMES_SHOWN = 12	# teman som syns direkt, resten bakom "Show more themes"
 ALBUMS_SHOWN = 10	# album som syns direkt, resten bakom "Show more albums"
 ALBUM_PICTURES = 20	# bilder per albumrad (bara de som får plats laddas)
@@ -267,15 +267,6 @@ def build(day):
 	hero_cfg = read(CONFIG / "hero.json", {"groups": [], "fill": {"pool": 300}})
 	items = photos.items
 
-	# --- hero: handplockade (i dagens ordning) och sedan slump bland de mest favoritmarkerade
-	picked_ids = [i for g in hero_cfg.get("groups", []) for i in g.get("photos", []) if i in photos.by_id]
-	missing = [i for g in hero_cfg.get("groups", []) for i in g.get("photos", []) if i not in photos.by_id]
-	if missing:
-		print(f"OBS: hero-bilder som inte är publika/finns: {', '.join(missing)}")
-	picked = of_the_day(picked_ids, day, "hero")[:HERO_PICKED]
-	pool = [p["id"] for p in top(items, hero_cfg.get("fill", {}).get("pool", 300)) if p["id"] not in picked]
-	hero = [photos.card(photos.by_id[i], "k") for i in picked + of_the_day(pool, day, "hero-fill")[:HERO_RANDOM]]
-
 	# --- Explored (config/explored.json): the photos picked for Flickr's Explore
 	explored_ids = set()
 	try:
@@ -293,6 +284,23 @@ def build(day):
 	missing = sorted(explored_ids - {p["id"] for p in explored_items})
 	if missing:
 		print(f"OBS: {len(missing)} Explore-bilder i config/explored.json finns inte bland de publika: {', '.join(missing)}")
+	# --- hero: handplockade (i dagens ordning), sedan slump bland Explore-bilderna och de mest favoritmarkerade
+	picked_ids = [i for g in hero_cfg.get("groups", []) for i in g.get("photos", []) if i in photos.by_id]
+	missing = [i for g in hero_cfg.get("groups", []) for i in g.get("photos", []) if i not in photos.by_id]
+	if missing:
+		print(f"OBS: hero-bilder som inte är publika/finns: {', '.join(missing)}")
+	fill = hero_cfg.get("fill", {})
+	picked = of_the_day(picked_ids, day, "hero")[:HERO_PICKED]
+	n_explored = min(fill.get("explored", 0), HERO_RANDOM)
+	from_explored = of_the_day(sorted(i for i in explored_ids if i in photos.by_id and i not in picked), day, "hero-explored")[:n_explored]
+	pool = [p["id"] for p in top(items, fill.get("pool", 300)) if p["id"] not in picked and p["id"] not in from_explored]
+	from_faves = of_the_day(pool, day, "hero-fill")[:HERO_RANDOM - len(from_explored)]
+	mixed = []
+	for k in range(max(len(from_explored), len(from_faves))):	# varvas: Explore, Explore, favorit …
+		mixed += from_explored[2 * k:2 * k + 2] + from_faves[k:k + 1]
+	mixed = list(dict.fromkeys(mixed + from_explored + from_faves))[:HERO_RANDOM]
+	hero = [photos.card(photos.by_id[i], "k") for i in picked + mixed]
+
 	explored = None
 	if explored_items:
 		ex_years = collections.Counter(p["year"] for p in explored_items if p["year"])

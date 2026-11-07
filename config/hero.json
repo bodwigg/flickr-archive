@@ -1,5 +1,5 @@
 {
-	"help": "Hero: handplockade bilder visas först (en per dag i tur och ordning), därefter slump bland de mest visade/favoritmarkerade. Grupperna kommer från ulfbodin.se/portfolio.html. 'fill' styr slumpurvalet.",
+	"help": "Hero: handplockade bilder visas först (en per dag i tur och ordning), därefter slump: 'explored' st bland Explore-bilderna (config/explored.json), resten bland de 'pool' mest favoritmarkerade. Grupperna kommer från ulfbodin.se/portfolio.html. 'fill' styr slumpurvalet.",
 	"groups": [
 		{
 			"title": "Golden",
@@ -75,6 +75,7 @@
 		}
 	],
 	"fill": {
+		"explored": 4,
 		"pool": 300,
 		"rank": "faves"
 	}
