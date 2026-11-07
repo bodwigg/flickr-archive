@@ -37,6 +37,7 @@
 		<a href="#years">Years</a>
 		<a href="#themes">Themes</a>
 		<a href="#albums">Albums</a>
+		{% if explored %}<a href="#explored">Explored</a>{% endif %}
 		{% if cameras %}<a href="#gear">Gear</a>{% endif %}
 		<a href="#archive">Archive</a>
 		<a href="#about">About</a>
@@ -149,6 +150,26 @@
 	{% if albums|length > albums_shown %}
 	<p class="fx-more"><button type="button" class="fx-more__btn" data-albums-more data-less="Show fewer albums">Show more albums ({{ albums|length - albums_shown }})</button></p>
 	{% endif %}
+</section>
+{% endif %}
+
+{# Explored (config/explored.html): the photos picked for Flickr's Explore. #}
+{% if explored %}
+<section class="fx-section" id="explored">
+	<header class="fx-section__head">
+		<h2 class="fx-section__title">Explored</h2>
+		<p class="fx-section__sub">{{ explored.count|num }} photos picked for Flickr's Explore – the 500 photos chosen each day from everything uploaded.</p>
+	</header>
+	<ol class="fx-jobs">
+		<li class="fx-job">
+			<button type="button" class="fx-job__head" data-filter="explored" data-value="1">
+				<span class="fx-job__title">All explored photos</span>
+				<span class="fx-job__meta">{{ explored.span }} · {{ explored.count|num }} photos</span>
+			</button>
+			<span class="fx-job__pictures">{% for pic in explored.pictures %}<button type="button" class="fx-job__pic" data-open="{{ pic.id }}" style="--r: {{ pic.ratio }}"><img data-src="{{ pic.src }}" alt="{{ pic.title }}" loading="lazy"></button>{% endfor %}</span>
+		</li>
+	</ol>
+	<p class="fx-explored__years">{% for y in explored.years %}<button type="button" class="fx-chip" data-filter="year" data-value="{{ y.year }}" data-also="explored:1">{{ y.year }} <span>{{ y.count }}</span></button>{% endfor %}</p>
 </section>
 {% endif %}
 
@@ -297,6 +318,10 @@
 	{% if why %}
 	<div class="fx-panel" id="fx-panel-why" data-panel-body="why" hidden>
 		{{ panel_head("Why", "Series and projects – the albums that are not places.") }}
+		{% if explored %}<div class="fx-panel__group">
+			<span class="fx-panel__label">Flickr</span>
+			<span class="fx-panel__chips"><button type="button" class="fx-chip fx-chip--strong" data-filter="explored" data-value="1" data-panel-chip>Explored <span>{{ explored.count|num }}</span></button></span>
+		</div>{% endif %}
 		<span class="fx-panel__chips">{% for a in why %}<button type="button" class="fx-chip fx-chip--job" data-filter="album" data-value="{{ a.id }}" data-label="{{ a.title }}" data-panel-chip title="{{ a.title }}">{{ a.title }} <span>{{ a.count|num }}</span></button>{% endfor %}</span>
 		<p class="fx-panel__empty" data-panel-empty hidden>No albums with these choices.</p>
 	</div>

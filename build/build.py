@@ -44,7 +44,7 @@ CDN = "https://live.staticflickr.com"
 SCRIPT_TEXTS = {
 	"label_bm": "Showing", "label_year": "Year", "label_decade": "Decade", "label_theme": "Theme",
 	"label_place": "Place", "label_album": "Album", "label_camera": "Camera", "label_lens": "Lens", "label_focal": "Focal length", "equiv": "equiv.",
-	"label_license": "Licence", "label_q": "Search",
+	"label_license": "Licence", "label_q": "Search", "explored": "Explored", "v_explored": "Picked for Flickr's Explore",
 	"bm_value": "bookmarks", "map": "Map", "map_fullscreen": "Full screen", "map_fullscreen_exit": "Exit full screen", "map_opacity": "Background map", "map_map": "Map", "map_satellite": "Satellite", "remove": "Remove {what}", "decade": "{decade}s",
 	"count_one": "{count} photo", "count_many": "{count} photos",
 	"bm_remove": "Remove the bookmark", "bm_add": "Bookmark the photo", "bookmark": "Bookmark", "bookmarked": "Bookmarked",
@@ -276,6 +276,26 @@ def build(day):
 	pool = [p["id"] for p in top(items, hero_cfg.get("fill", {}).get("pool", 300)) if p["id"] not in picked]
 	hero = [photos.card(photos.by_id[i], "k") for i in picked + of_the_day(pool, day, "hero-fill")[:HERO_RANDOM]]
 
+	# --- Explored (config/explored.html): the photos picked for Flickr's Explore, from Scout's posters
+	try:
+		explored_text = (CONFIG / "explored.html").read_text(encoding="utf-8")
+	except FileNotFoundError:
+		explored_text = ""
+	explored_ids = set(re.findall(r"photos/(?:[^/\s\"]+)/(\d+)", explored_text))
+	explored_items = [p for p in items if p["id"] in explored_ids]
+	missing_explored = len(explored_ids) - len(explored_items)
+	if missing_explored:
+		print(f"OBS: {missing_explored} Explore-bilder i config/explored.html finns inte bland de publika")
+	explored = None
+	if explored_items:
+		ex_years = collections.Counter(p["year"] for p in explored_items if p["year"])
+		explored = {
+			"count": len(explored_items),
+			"years": [{"year": y, "count": n} for y, n in sorted(ex_years.items(), reverse=True)],
+			"span": span(p["year"] for p in explored_items),
+			"pictures": [photos.card(p, "n") for p in sorted(top(explored_items, ALBUM_PICTURES), key=lambda p: p["taken"] or "", reverse=True)],
+		}
+
 	# --- år
 	year_count = collections.Counter(p["year"] for p in items if p["year"])
 	strip = sorted(y for y, n in year_count.items() if n >= YEAR_MIN)
@@ -407,6 +427,7 @@ def build(day):
 		"themes": {t["id"]: t["label"] for t in themes},
 		"licenses": {l["id"]: [l["name"], l["url"]] for l in licenses},
 		"day": day.isoformat(),
+		"explored": sorted(p["id"] for p in explored_items),
 		"gear": {
 			"crop": {c: gear.crop(c) for c in raw.get("cameras", [])},
 			"cameras": {c: gear.camera_label(c) for c in raw.get("cameras", [])},
@@ -421,7 +442,7 @@ def build(day):
 	html = env.get_template("index.html").render(
 		site=site, coll=coll, hero=hero, years=years, when=when, themes=themes, themes_shown=THEMES_SHOWN, albums_shown=ALBUMS_SHOWN,
 		albums=album_rows, places=places, why=why, cameras=cameras, camera_peak=camera_peak, focal=focal, focal_peak=focal_peak,
-		lens_groups=lens_groups, lenses=lenses, panoramas=panoramas, pano_peak=pano_peak,
+		lens_groups=lens_groups, lenses=lenses, panoramas=panoramas, pano_peak=pano_peak, explored=explored,
 		pano_total=pano_total, pano_theme=pano_id, exif_total=exif_total, gear_total=gear_total,
 		licenses=licenses, fx=fx, version=datetime.now().strftime("%Y%m%d%H%M"),
 	)

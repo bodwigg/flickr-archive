@@ -967,3 +967,8 @@ img { display: block; max-width: 100%; }
 .fx-gear__tabs .fx-chip[aria-selected="true"] span { color: var(--bg); opacity: 0.7; }
 .fx-gear__panel[hidden] { display: none; }
 .fx-gear__hint { margin: 0 0 1rem; color: var(--ink-faint); font-size: 0.85rem; }
+
+/* --- Explored: the year chips below the row, the badge in the viewer --- */
+.fx-explored__years { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 1rem 0 0; }
+.fx-viewer__info .fx-v-explored { display: inline-block; margin: 0 0 1rem; padding: 0.25rem 0.7rem; border: 1px solid var(--accent); border-radius: 999px; color: var(--accent); font-size: 0.8rem; }
+.fx-viewer__info .fx-v-explored:hover { background: var(--accent); color: var(--on-accent); }

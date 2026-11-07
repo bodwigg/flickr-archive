@@ -32,12 +32,12 @@
 	function tr(key, values) {
 		return String(T[key] || key).replace(/\{(\w+)\}/g, function (m, k) { return values && values[k] != null ? values[k] : m; });
 	}
-	const LABELS = { geo: '', bm: tr('label_bm'), year: tr('label_year'), decade: tr('label_decade'), theme: tr('label_theme'), place: tr('label_place'), album: tr('label_album'), camera: tr('label_camera'), lens: tr('label_lens'), focal: tr('label_focal'), license: tr('label_license'), q: tr('label_q') };
-	const KEYS = ['geo', 'bm', 'year', 'decade', 'theme', 'place', 'album', 'camera', 'lens', 'focal', 'license', 'q'];
+	const LABELS = { geo: '', bm: tr('label_bm'), year: tr('label_year'), decade: tr('label_decade'), theme: tr('label_theme'), place: tr('label_place'), album: tr('label_album'), camera: tr('label_camera'), lens: tr('label_lens'), focal: tr('label_focal'), explored: '', license: tr('label_license'), q: tr('label_q') };
+	const KEYS = ['geo', 'bm', 'year', 'decade', 'theme', 'place', 'album', 'camera', 'lens', 'focal', 'explored', 'license', 'q'];
 	const SMALL_SCREEN = window.matchMedia('(max-width: 760px)');
 	// Which panel shows which filters - and which filters a panel's counts leave out (cross-faceting).
-	const PANEL_OF = { decade: 'when', year: 'when', place: 'where', geo: 'where', theme: 'what', album: 'why', camera: 'how', lens: 'how', focal: 'how' };
-	const GROUPS = { when: ['year', 'decade'], where: ['place', 'geo'], what: ['theme'], why: ['album'], how: ['camera', 'lens', 'focal'] };
+	const PANEL_OF = { decade: 'when', year: 'when', place: 'where', geo: 'where', theme: 'what', album: 'why', explored: 'why', camera: 'how', lens: 'how', focal: 'how' };
+	const GROUPS = { when: ['year', 'decade'], where: ['place', 'geo'], what: ['theme'], why: ['album', 'explored'], how: ['camera', 'lens', 'focal'] };
 
 	function el(tag, cls, text) {
 		const node = document.createElement(tag);
@@ -86,6 +86,7 @@
 			p.focal = f.focal != null ? r[f.focal] : null;
 			p.eq = p.focal ? Math.round(p.focal * (GEAR.crop[p.camera] || 1)) : null;
 			p.focalKey = focalKey(p.eq);
+			p.explored = EXPLORED.has(p.id);
 			p.ratio = p.w && p.h ? Math.round(p.w / p.h * 1000) / 1000 : 1.5;
 			p.src = urlOf(p, 'z');
 			p.small = urlOf(p, 'n');
@@ -99,6 +100,8 @@
 		DATA.ready = true;
 	}
 
+	// Explored (config/explored.html via the build): the photos picked for Flickr's Explore.
+	const EXPLORED = new Set(FX.explored || []);
 	const GEAR = Object.assign({ crop: {}, cameras: {}, lenses: {}, fixed: {}, focal: [] }, FX.gear || {});
 	function focalKey(eq) {
 		if (eq == null) return null;
@@ -216,6 +219,7 @@
 		if (key === 'camera') return GEAR.cameras[value] || value;
 		if (key === 'lens') return GEAR.lenses[value] || value;
 		if (key === 'focal') return focalLabel(value);
+		if (key === 'explored') return tr('explored');
 		if (key === 'bm') return tr('bm_value');
 		if (key === 'geo') return tr('map');
 		return value;
@@ -290,6 +294,7 @@
 			if (f.camera && p.camera !== f.camera) return false;
 			if (f.lens && p.lens !== f.lens) return false;
 			if (f.focal && p.focalKey !== f.focal) return false;
+			if (f.explored && !p.explored) return false;
 			if (f.license && p.license !== f.license) return false;
 			for (let i = 0; i < terms.length; i++) if (p.search.indexOf(terms[i]) < 0) return false;
 			return true;
@@ -382,6 +387,11 @@
 		const what = countBy('what', function (p) { return p.themes; });
 		document.querySelectorAll('[data-panel-body="what"] [data-filter="theme"]').forEach(function (b) { setCount(b, what[b.dataset.value] || 0); });
 		const why = countBy('why', function (p) { return p.albums; });
+		const exploredChip = document.querySelector('[data-panel-body="why"] [data-filter="explored"]');
+		if (exploredChip) {
+			const testEx = matcher(state.filters, ['explored']);
+			setCount(exploredChip, DATA.photos.filter(function (p) { return p.explored && testEx(p); }).length);
+		}
 		document.querySelectorAll('[data-panel-body="why"] [data-filter="album"]').forEach(function (b) { setCount(b, why[b.dataset.value] || 0); });
 		// How: camera, lens and focal length narrow each other - each leaves out only its own choice.
 		const cams = countBy(['camera'], function (p) { return [p.camera]; });
@@ -601,7 +611,7 @@
 			closeViewer();
 			const panel = f.closest('[data-panel-body]');
 			// A year, a theme or an album above the archive starts a new selection.
-			if (f.closest('#years, #themes, #albums, #gear')) {
+			if (f.closest('#years, #themes, #albums, #explored, #gear')) {
 				state.filters = {};
 				if (searchForm) searchForm.q.value = '';
 			}
@@ -1088,6 +1098,10 @@
 			star.appendChild(el('span', 'fx-v-star__label', ''));
 			showStar(star);
 			vInfo.appendChild(star);
+		}
+		if (p.explored) {
+			const badge = filterButton('explored', '1', '✦ ' + tr('v_explored'), 'fx-v-explored');
+			vInfo.appendChild(badge);
 		}
 		const descSlot = el('div');
 		vInfo.appendChild(descSlot);
