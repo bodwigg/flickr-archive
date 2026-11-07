@@ -3,6 +3,8 @@
 	python build/build.py             bygger dist/ (dagens urval)
 	python build/build.py --date 2026-12-24   … med urvalet för ett visst datum
 
+Dessutom dist/data/last.json: den senast uppladdade bilden, för sidan ulfbodin.se/flickr-last/.
+
 Hero, årsbilder, temamosaiker och albumrader väljs med ett frö per dag – sidan byggs
 varje natt (GitHub Actions) och får då ett nytt urval. Själva filtreringen sker i
 webbläsaren mot data/photos.json (static/archive.js).
@@ -14,6 +16,8 @@ Förhandsvisning lokalt:
 
 import argparse
 import collections
+import colorsys
+import io
 import json
 import random
 import re
@@ -196,6 +200,61 @@ def span(years):
 	return f"{years[0]}–{years[-1]}" if years[0] != years[-1] else str(years[0])
 
 
+def muted_colour(image_bytes):
+	"""The photo's most prominent colour, darkened and muted into a background (flickr-last).
+
+	The photo is reduced to eight colours; the most common one wins, but near-black and near-white
+	give way to a real colour that covers at least a tenth of the photo. The background keeps the
+	hue, gets at most 35 % saturation and 17 % lightness - dark enough for the photo to stand out
+	and for light text. Returns None if Pillow is missing or the image cannot be read.
+	"""
+	try:
+		from PIL import Image
+	except ImportError:
+		return None
+	try:
+		img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+	except Exception:
+		return None
+	img.thumbnail((120, 120))
+	quant = img.quantize(colors=8, method=Image.Quantize.MEDIANCUT)
+	palette = quant.getpalette()
+	counts = sorted(quant.getcolors(), reverse=True)
+	total = sum(c for c, _ in counts)
+	colours = []
+	for count, index in counts:
+		r, g, b = (v / 255 for v in palette[index * 3:index * 3 + 3])
+		h, l, sat = colorsys.rgb_to_hls(r, g, b)
+		colours.append((count / total, h, l, sat))
+	share, h, l, sat = colours[0]
+	if l < 0.12 or l > 0.9 or sat < 0.08:
+		for c in colours[1:]:
+			if c[0] >= 0.1 and 0.12 <= c[2] <= 0.9 and c[3] >= 0.08:
+				share, h, l, sat = c
+				break
+
+	def hexc(h, l, s):
+		return "#%02x%02x%02x" % tuple(round(v * 255) for v in colorsys.hls_to_rgb(h, l, s))
+
+	return {
+		"bg": hexc(h, 0.17, min(sat, 0.35)),
+		"text": hexc(h, 0.96, min(sat, 0.25)),
+		"muted": hexc(h, 0.68, min(sat, 0.22)),
+	}
+
+
+def fetch_colour(url):
+	"""Downloads the small square (_q, 150 px) and returns muted_colour() - or None offline."""
+	try:
+		import requests
+		resp = requests.get(url, timeout=20)
+		resp.raise_for_status()
+	except Exception as exc:
+		print(f"OBS: kunde inte hämta bilden för färgen ({type(exc).__name__}) – standardfärgen används")
+		return None
+	return muted_colour(resp.content)
+
+
 def top(items, n):
 	return sorted(items, key=lambda p: (-p["faves"], -p["views"], p["id"]))[:n]
 
@@ -367,6 +426,21 @@ def build(day):
 		licenses=licenses, fx=fx, version=datetime.now().strftime("%Y%m%d%H%M"),
 	)
 
+	# --- flickr-last: the latest uploaded photo as a tiny data/last.json, read by the stand-alone
+	# page ulfbodin.se/flickr-last/ (bodwigg.github.io/flickr-last/index.html).
+	latest = sorted(items, key=lambda p: (-p["uploaded"], p["id"]))[0]
+	last = {
+		"id": latest["id"],
+		"title": latest["title"],
+		"taken": latest["taken"],
+		"uploaded": latest["uploaded"],
+		"ratio": latest["ratio"],
+		"src": photos.url(latest, "k"),
+		"medium": photos.url(latest, "b"),
+		"url": f"https://www.flickr.com/photos/{site.get('flickr_user', 'ulfbodin')}/{latest['id']}/",
+		"colour": fetch_colour(photos.url(latest, "q")),
+	}
+
 	if DIST.exists():
 		shutil.rmtree(DIST)
 	shutil.copytree(ROOT / "static", DIST / "static", copy_function=shutil.copyfile)
@@ -375,10 +449,13 @@ def build(day):
 	if (DATA / "details").exists():
 		shutil.copytree(DATA / "details", DIST / "data" / "details", copy_function=shutil.copyfile)
 	(DIST / "index.html").write_text(html, encoding="utf-8", newline="\n")
+	(DIST / "data" / "last.json").write_text(json.dumps(last, ensure_ascii=False), encoding="utf-8")
+	# … och en kopia i data/ (inte i git) för förhandsvisning av flickr-last lokalt, se README.
+	(DATA / "last.json").write_text(json.dumps(last, ensure_ascii=False), encoding="utf-8")
 	(DIST / ".nojekyll").write_text("", encoding="utf-8")
 	print(f"dist/ byggd för {day}: {len(items)} foton, {len(hero)} hero, {len(years)} år, "
 		f"{len(themes)} teman, {len(album_rows)} album, {len(cameras)} kameror, {len(lenses)} objektiv, "
-		f"index.html {len(html) // 1024} kB")
+		f"index.html {len(html) // 1024} kB; data/last.json = {latest['id']}")
 
 
 def main():

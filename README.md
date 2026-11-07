@@ -47,8 +47,17 @@ python -m http.server -d dist 8000       → http://localhost:8000/
 | `config/site.json` | Sidans texter: titel, presentation, länkar |
 | `config/gear.json` | Delen Gear: märken som visas (Canon, Sigma), visningsnamn, cropfaktor per kamera (för fullformatsekvivalent brännvidd), fasta objektiv och brännviddsfacken |
 | `config/hero.json` | Handplockade hero-bilder (portfolion) + slumpurvalets storlek |
+| `data/last.json` (byggs) | Den senast uppladdade bilden – läses av den fristående sidan ulfbodin.se/flickr-last/ (repot bodwigg.github.io) |
 | `templates/index.html` | Sidan (Jinja2) – upplägget från Radius "månadens" |
 | `static/archive.css`, `static/archive.js` | Stil och skript; filtreringen sker i webbläsaren mot `data/photos.json` |
 | `static/vendor/` | Leaflet 1.9.4, Leaflet.markercluster 1.5.3, OpenSeadragon 4.1.1 |
+
+flickr-last (`ulfbodin.se/flickr-last/`, i repot bodwigg.github.io) läser `/flickr-archive/data/last.json`. Lokalt: bygg här, starta sedan servern i mappen ovanför båda repona och öppna sidan:
+
+```
+python build/build.py
+cd ..
+python -m http.server 8000               → http://localhost:8000/bodwigg.github.io/flickr-last/
+```
 
 Hero, årsbilder, temamosaiker och albumrader väljs med ett frö per dag; bygget körs varje natt och sidan får då ett nytt urval.
