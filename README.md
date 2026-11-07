@@ -46,6 +46,7 @@ python -m http.server -d dist 8000       → http://localhost:8000/
 |---|---|
 | `config/site.json` | Sidans texter: titel, presentation, länkar |
 | `config/gear.json` | Delen Gear: märken som visas (Canon, Sigma), visningsnamn, cropfaktor per kamera (för fullformatsekvivalent brännvidd), fasta objektiv och brännviddsfacken |
+| `config/explored.json` | **Redigeras för hand.** Bilderna som valts till Flickrs Explore (delen Explored, filtret `?explored=1`). En rad per bild: `{"id": "…"}`, id:t är numret i bildens Flickr-adress (hela adressen går också bra). Titeln är bara för läsbarhet. |
 | `config/hero.json` | Handplockade hero-bilder (portfolion) + slumpurvalets storlek |
 | `data/last.json` (byggs) | Den senast uppladdade bilden – läses av den fristående sidan ulfbodin.se/flickr-last/ (repot bodwigg.github.io) |
 | `templates/index.html` | Sidan (Jinja2) – upplägget från Radius "månadens" |

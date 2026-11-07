@@ -276,16 +276,23 @@ def build(day):
 	pool = [p["id"] for p in top(items, hero_cfg.get("fill", {}).get("pool", 300)) if p["id"] not in picked]
 	hero = [photos.card(photos.by_id[i], "k") for i in picked + of_the_day(pool, day, "hero-fill")[:HERO_RANDOM]]
 
-	# --- Explored (config/explored.html): the photos picked for Flickr's Explore, from Scout's posters
+	# --- Explored (config/explored.json): the photos picked for Flickr's Explore
+	explored_ids = set()
 	try:
-		explored_text = (CONFIG / "explored.html").read_text(encoding="utf-8")
+		explored_conf = json.loads((CONFIG / "explored.json").read_text(encoding="utf-8"))
 	except FileNotFoundError:
-		explored_text = ""
-	explored_ids = set(re.findall(r"photos/(?:[^/\s\"]+)/(\d+)", explored_text))
+		explored_conf = {}
+	for entry in explored_conf.get("photos", []):
+		value = str(entry.get("id", "") if isinstance(entry, dict) else entry).strip()
+		match = re.search(r"photos/[^/\s]+/(\d+)", value) or re.fullmatch(r"(\d+)", value)
+		if match:
+			explored_ids.add(match.group(1))
+		else:
+			print(f"OBS: förstår inte {value!r} i config/explored.json")
 	explored_items = [p for p in items if p["id"] in explored_ids]
-	missing_explored = len(explored_ids) - len(explored_items)
-	if missing_explored:
-		print(f"OBS: {missing_explored} Explore-bilder i config/explored.html finns inte bland de publika")
+	missing = sorted(explored_ids - {p["id"] for p in explored_items})
+	if missing:
+		print(f"OBS: {len(missing)} Explore-bilder i config/explored.json finns inte bland de publika: {', '.join(missing)}")
 	explored = None
 	if explored_items:
 		ex_years = collections.Counter(p["year"] for p in explored_items if p["year"])
