@@ -437,6 +437,7 @@ def build(day):
 		"ratio": latest["ratio"],
 		"src": photos.url(latest, "k"),
 		"medium": photos.url(latest, "b"),
+		"small": photos.url(latest, "n"),	# 320 px – the photo on ulfbodin.se/photography.html
 		"url": f"https://www.flickr.com/photos/{site.get('flickr_user', 'ulfbodin')}/{latest['id']}/",
 		"colour": fetch_colour(photos.url(latest, "q")),
 	}
