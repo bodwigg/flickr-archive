@@ -1,6 +1,7 @@
 {
 	"about": "Photos picked for Flickr's Explore. Add a new one as a line {\"id\": \"…\"} – the id is the number in the photo's Flickr address, flickr.com/photos/10817753@N03/ID/. A whole address works too. The title is only for reading and can be left out; order does not matter.",
 	"photos": [
+		{"id": "55665380963", "title": "Fifth Element, Uppsala, November 14, 2026"},
 		{"id": "55580363139", "title": "Storstupet, July 7, 2026"},
 		{"id": "55472683356", "title": "Stenshuvud, July 12, 2026"},
 		{"id": "55383036963", "title": "Årsta, Uppsala, June 3, 2026"},
